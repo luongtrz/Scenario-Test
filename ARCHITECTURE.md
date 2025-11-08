@@ -1,82 +1,90 @@
-# 🏗️ Kiến Trúc Và Design Patterns
+# Architecture & Design Patterns
 
-## Tổng Quan Kiến Trúc
+## Project Overview
+
+This E2E test suite demonstrates cross-framework testing by implementing identical test case (TC-E2E-001) in both Selenium Python and Playwright TypeScript.
+
+**Target System:** PrestaShop demo storefront  
+**Key Challenge:** All storefront elements exist inside iframe `#framelive`
 
 ```
 PrestaShop Demo Site
 └── Main Page (demo.prestashop.com)
-    └── <iframe id="framelive">  ← STOREFRONT CHẠY ĐÂY!
+    └── <iframe id="framelive">  ← STOREFRONT RUNS HERE
         ├── Product Listings
         ├── Product Details
         ├── Shopping Cart
         └── Checkout Flow
 ```
 
-**⚠️ KEY INSIGHT:** Toàn bộ storefront chạy trong iframe `#framelive`. Đây là điểm khác biệt quan trọng nhất!
-
 ## Iframe Handling Patterns
 
 ### Selenium Python - Explicit Context Switch
 
 ```python
-# Phải switch context trước khi interact
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+# Must switch context before any storefront interaction
 iframe = wait.until(EC.presence_of_element_located((By.ID, "framelive")))
 driver.switch_to.frame(iframe)
 
-# Bây giờ tất cả interactions ở trong iframe
+# Now all interactions happen in iframe context
 element = driver.find_element(By.CSS_SELECTOR, ".product")
 element.click()
 
-# Để quay lại main page:
+# Switch back to main page if needed
 driver.switch_to.default_content()
 ```
+
+**Pros:** Explicit control, works across all browsers  
+**Cons:** Easy to forget switch, context management overhead
 
 ### Playwright TypeScript - frameLocator API
 
 ```typescript
-// Tạo frame locator (không switch context)
+// Create frame locator (no context switch needed)
 const frameLocator = page.frameLocator('#framelive');
 
-// Tất cả interactions sử dụng frameLocator
+// All interactions use frameLocator prefix
 const product = frameLocator.locator('.product');
 await product.click();
 
-// Main page context vẫn giữ nguyên!
+// Main page context remains unchanged
 ```
 
-**So Sánh:**
-- **Selenium:** Phải switch context → dễ quên → bugs
-- **Playwright:** Frame locator → clean hơn → ít bugs
+**Pros:** Cleaner API, no context switching, less error-prone  
+**Cons:** Playwright-specific, not available in Selenium
 
 ## Element Interaction Patterns
 
-### 1. Robust Click Pattern
+### 1. Robust Click Strategy
 
-**Problem:** Một số elements không click được với `.click()` standard
+**Problem:** Standard `.click()` sometimes fails on checkboxes, radio buttons, or overlapped elements
 
-**Solution - Selenium:**
+**Selenium Solution:**
 ```python
 try:
     element.click()
 except:
-    # Fallback: JavaScript executor
+    # Fallback: JavaScript executor bypasses visibility checks
     driver.execute_script("arguments[0].click();", element)
 ```
 
-**Solution - Playwright:**
+**Playwright Solution:**
 ```typescript
-// Auto-retry built-in, ít cần fallback hơn
+// Built-in retry and actionability checks
 await element.click();
 
-// Nếu cần force:
+// Force click if element is covered
 await element.click({ force: true });
 ```
 
 ### 2. Optional Elements Pattern
 
-**Problem:** Một số fields (privacy checkbox, social title) không phải lúc nào cũng có
+**Problem:** Privacy checkbox, social title radio, password field may not always be present
 
-**Solution - Try-Catch Pattern:**
+**Solution - Try-Catch Wrapper:**
 
 ```python
 # Selenium
@@ -85,27 +93,27 @@ try:
     if not privacy_checkbox.is_selected():
         driver.execute_script("arguments[0].click();", privacy_checkbox)
 except:
-    print("   ℹ Privacy checkbox not found")
+    print("Privacy checkbox not found - continuing")
 ```
 
 ```typescript
-// Playwright
+// Playwright with timeout
 try {
   const privacyCheckbox = frameLocator.locator('input[name="psgdpr"]');
   await privacyCheckbox.check({ timeout: 3000 });
 } catch {
-  console.log('   ℹ Privacy checkbox not found');
+  console.log('Privacy checkbox not found - continuing');
 }
 ```
 
-### 3. Wait Strategy Differences
+### 3. Wait Strategy Comparison
 
 | Aspect | Selenium | Playwright |
 |--------|----------|------------|
-| **Default** | No wait (immediate fail) | Auto-wait (retry ~30s) |
-| **Explicit Wait** | WebDriverWait + EC required | `.waitFor()` available |
+| **Default Behavior** | Immediate fail if not found | Auto-wait up to 30s |
+| **Explicit Waits** | WebDriverWait + EC required | `.waitFor()` available |
 | **AJAX Transitions** | `time.sleep()` needed | Minimal `waitForTimeout()` |
-| **Recommendation** | Always use explicit waits | Trust auto-wait, add waits for AJAX only |
+| **Best Practice** | Always use explicit waits | Trust auto-wait, add waits for AJAX only |
 
 **Selenium Example:**
 ```python
@@ -116,52 +124,52 @@ wait = WebDriverWait(driver, 20)
 element = wait.until(
     EC.element_to_be_clickable((By.CSS_SELECTOR, ".btn-primary"))
 )
-time.sleep(2)  # Wait for AJAX
+time.sleep(2)  # Wait for AJAX animation
 ```
 
 **Playwright Example:**
 ```typescript
-// Auto-wait built-in
+// Auto-wait built-in - no explicit wait needed
 const element = frameLocator.locator('.btn-primary');
-await element.click();  // Automatically waits for clickable
+await element.click();  // Waits for element to be clickable
 
-// AJAX transitions
+// Only for AJAX transitions
 await page.waitForTimeout(2000);
 ```
 
 ## Selector Strategy
 
-**Ưu tiên từ cao → thấp:**
+**Priority (high to low):**
 
-1. **`name` attribute** (forms)
+1. **`name` attribute** - Most stable for form fields
    ```html
    <input name="firstname"> → name="firstname"
    ```
 
-2. **`id` attribute** (unique elements)
+2. **`id` attribute** - Unique identifiers
    ```html
    <div id="payment-option-1"> → #payment-option-1
    ```
 
-3. **`data-*` attributes** (actions)
+3. **`data-*` attributes** - Semantic action indicators
    ```html
    <button data-button-action="add-to-cart"> → [data-button-action='add-to-cart']
    ```
 
-4. **CSS classes** (structural)
+4. **CSS classes** - Structural selectors
    ```html
    <article class="product"> → .product
    ```
 
-**❌ TRÁNH:**
-- XPath (khó maintain, slow)
-- Text-based selectors (i18n issues)
-- Deep nested selectors (brittle)
+**Avoid:**
+- XPath (difficult to maintain, slower performance)
+- Text-based selectors (internationalization issues)
+- Deep nested selectors (brittle, breaks easily)
 
-## Test Data Pattern
+## Test Data Constants
 
 ```python
-# Constants ở đầu file
+# Define at top of test file for easy maintenance
 FIRST_NAME = "John"
 LAST_NAME = "Doe"
 EMAIL = "john.doe.{framework}@automation.com"  # Unique per framework
@@ -170,24 +178,24 @@ POSTCODE = "10001"
 CITY = "New York"
 ```
 
-**Tại sao unique email per framework?**
-- Tránh conflicts nếu chạy parallel
-- Dễ debug: biết test nào generate data
+**Why unique email per framework?**
+- Prevents conflicts if running tests in parallel
+- Easier debugging - know which test generated the data
+- Avoids potential duplicate account issues on demo site
 
-## Error Handling Pattern
+## Error Handling & Reporting
 
-### Selenium - Screenshot + Cleanup
+### Selenium - Screenshot + Cleanup Pattern
 
 ```python
 try:
-    # Test logic
     test_guest_checkout_e2e()
 except Exception as e:
-    print(f"❌ Test failed: {str(e)}")
+    print(f"Test failed: {str(e)}")
     driver.save_screenshot("selenium_failure.png")
     raise
 finally:
-    driver.quit()  # Always cleanup
+    driver.quit()  # Always cleanup resources
 ```
 
 ### Playwright - Built-in Reporter
@@ -200,154 +208,235 @@ finally:
   trace: 'on-first-retry',
 }
 
-// Test auto-captures artifacts on fail!
+// Artifacts automatically captured on failure
+// View with: npx playwright show-report
 ```
 
 ## Console Logging Pattern
 
-**Format chuẩn (giống nhau cả 2 frameworks):**
+**Standard format used in both frameworks:**
 
 ```
-📍 Step X: [Action description]...
-   ✓ [Success message]
-   ⚠ [Warning - optional element]
-   ℹ [Info message]
+Step 1: Navigating to PrestaShop demo...
+Step 2: Switching to storefront iframe...
+  Switched to iframe successfully
+Step 3: Locating product on homepage...
 ```
 
-**Why consistent?**
-- Dễ đọc logs khi compare 2 frameworks
-- Visual debugging nhanh hơn
-- Professional output
+**Benefits:**
+- Easy comparison between framework outputs
+- Clear visual debugging
+- Professional test reports
+- No verbose emojis or decorations
 
 ## Cross-Framework Test Parity
 
-**Rule:** Khi sửa 1 test, phải sửa cả 2!
+**Rule:** When modifying one test, update both to maintain parity
 
-| Aspect | Must Match |
-|--------|------------|
-| Test steps | ✅ Same numbering (1-16) |
-| Test data | ✅ Same values |
-| Console output | ✅ Same format |
-| Error handling | ✅ Same patterns |
-| Assertions | ✅ Same logic |
-
-**Ví dụ:**
-```python
-# Selenium - Step 5
-print("📍 Step 5: Adding product to cart...")
-add_to_cart_btn.click()
-print("   ✓ Product added to cart")
-```
-
-```typescript
-// Playwright - Step 5
-console.log('📍 Step 5: Adding product to cart...');
-await addToCartBtn.click();
-console.log('   ✓ Product added to cart');
-```
+| Aspect | Requirement |
+|--------|-------------|
+| Test steps | Same numbering (1-16) |
+| Test data | Identical values |
+| Console output | Consistent format |
+| Error handling | Similar patterns |
+| Assertions | Equivalent logic |
 
 ## Known Quirks & Workarounds
 
 ### 1. PrestaShop Demo Instability
-- **Issue:** Demo site reset periodically
-- **Impact:** Random failures
+- **Issue:** Demo site resets periodically, may be unavailable
+- **Impact:** Random test failures unrelated to code
 - **Mitigation:**
-  - Selenium: 20s timeout
+  - Selenium: 20s element timeout
   - Playwright: `retries: 2` in config
-  - Screenshot on failure
+  - Screenshot capture on failure for debugging
 
 ### 2. Flaky Checkboxes
-- **Issue:** Standard click() fails
-- **Solution:** JavaScript executor (Selenium) hoặc `.check()` (Playwright)
+- **Issue:** Standard click() fails on privacy/terms checkboxes
+- **Root Cause:** Custom checkbox styling with overlapping elements
+- **Solution:** 
+  - Selenium: JavaScript executor click
+  - Playwright: Built-in `.check()` method handles this
 
 ```python
-# Selenium - reliable checkbox click
+# Selenium - reliable checkbox interaction
 driver.execute_script("arguments[0].click();", checkbox)
 ```
 
 ```typescript
-// Playwright - built-in robust check
+// Playwright - handles overlay automatically
 await checkbox.check();
 ```
 
 ### 3. AJAX Page Transitions
-- **Issue:** No full page reload → timing issues
-- **Solution:** Explicit sleeps sau major actions
+- **Issue:** PrestaShop uses AJAX without full page reloads
+- **Impact:** Elements may not be immediately available
+- **Solution:** Explicit waits after major navigation actions
 
 ```python
 # After clicking "Add to Cart"
 time.sleep(2)  # Wait for modal animation
 ```
 
-## Testing Philosophy
+```typescript
+// After clicking "Add to Cart"
+await page.waitForTimeout(2000);
+```
 
-### Why Dual-Framework?
+## Framework Comparison
 
-1. **Educational:** Compare modern (Playwright) vs traditional (Selenium)
-2. **Flexibility:** Teams có thể choose based on needs
-3. **Validation:** Same test = same results (ideal)
-4. **Learning:** Best practices từ cả 2 worlds
+### When to Use Selenium
 
-### When to Use Which?
+- Multi-language support needed (Java, C#, Ruby, Python, etc.)
+- Large existing Selenium codebase
+- Team already familiar with Selenium
+- Cross-browser support with Selenium Grid
+- Enterprise environments with strict tooling requirements
 
-**Selenium:**
-- ✅ Multi-language support needed (Java, C#, Ruby, etc.)
-- ✅ Large existing codebase
-- ✅ Team đã familiar với Selenium
-- ✅ Cross-browser support across multiple vendors
+### When to Use Playwright
 
-**Playwright:**
-- ✅ Modern web apps (SPAs, PWAs)
-- ✅ Starting new project
-- ✅ Need auto-wait and retry
-- ✅ Want built-in debugging tools (trace viewer, inspector)
-- ✅ TypeScript/JavaScript team
+- Modern web apps (SPAs, PWAs)
+- Starting new test automation project
+- Need built-in auto-wait and retry mechanisms
+- Want powerful debugging tools (trace viewer, inspector)
+- TypeScript/JavaScript team
+- Parallel execution and sharding built-in
 
 ## Design Decisions
 
-### Why Not Page Object Model?
+### Why Not Page Object Model (POM)?
 
-**Current:** Direct interaction trong test file
+**Current Approach:** Direct interaction in test file
 
-**Reason:**
-- Demo purpose - dễ hiểu hơn cho learners
-- Single test case - không cần abstraction yet
-- Rõ ràng: thấy toàn bộ flow trong 1 file
+**Rationale:**
+- Educational purpose - easier for learners to understand
+- Single test case - abstraction overhead not justified yet
+- Transparency - entire flow visible in one file
 
-**Future:** Nếu scale lên nhiều test cases → nên refactor sang POM
+**Future:** If scaling to multiple test cases, refactor to POM:
+```typescript
+class CheckoutPage {
+  constructor(private frame: FrameLocator) {}
+  
+  async fillCustomerDetails(data: CustomerData) {
+    await this.frame.locator('input[name="firstname"]').fill(data.firstName);
+    // ... other fields
+  }
+}
+```
 
 ### Why 16 Steps?
 
-**Lý do:**
-- Cover toàn bộ checkout flow
-- Mỗi step = 1 user action or verification
-- Dễ debug: biết chính xác step nào fail
-- Consistent với test case documentation (IEEE 29119)
+- Covers complete end-to-end checkout flow
+- Each step = one user action or verification
+- Easy debugging - identify exact failure point
+- Consistent with IEEE 29119 test case documentation
+- Matches real user journey through the application
 
-### Why CLI Script?
+### Why CLI Script (run-tests.sh)?
 
-**`run-tests.sh` benefits:**
-- One-command setup và execution
-- Auto-install dependencies
-- Colored output cho UX tốt hơn
-- Summary report comparison
-- CI/CD ready
+**Benefits:**
+- One-command setup and execution
+- Auto-installs dependencies (venv, npm packages)
+- Colored output for better readability
+- Summary report comparing both frameworks
+- CI/CD ready with exit codes
 
 ## Performance Considerations
 
-- **Sequential vs Parallel:** Run sequential (demo throttles)
+- **Execution Mode:** Sequential (demo site may throttle parallel requests)
 - **Average Duration:** 35-50 seconds per test
-- **Bottleneck:** Network (demo site)
-- **Optimization:** Không nên optimize premature - test đã fast enough
+- **Primary Bottleneck:** Network latency to demo site
+- **Timeout Settings:**
+  - Selenium: 20s element wait
+  - Playwright: 15s action timeout, 30s navigation
+- **Optimization:** Current performance acceptable, avoid premature optimization
 
 ## Maintenance Guidelines
 
-1. **Quarterly Review:** Check selectors sau PrestaShop updates
-2. **Monitor Demo:** Track uptime và SSL cert expiry
-3. **Update Dependencies:** Selenium, Playwright versions
-4. **Document Failures:** Add to Known Issues section
-5. **Cross-Framework Sync:** Luôn update cả 2 tests
+1. **Quarterly Review:** Verify selectors after PrestaShop updates
+2. **Monitor Demo Site:** Track uptime and SSL certificate expiry
+3. **Update Dependencies:** Keep Selenium and Playwright current
+4. **Document New Issues:** Add to known issues section when discovered
+5. **Maintain Parity:** Always update both test implementations together
+6. **Selector Resilience:** Use semantic selectors over fragile ones
+7. **CI/CD Integration:** Monitor test stability metrics
 
----
+## CI/CD Integration
 
-**💡 Key Takeaway:** Kiến trúc đơn giản nhưng deliberate. Mỗi pattern được chọn vì lý do cụ thể, không phải "best practice" theoretical mà là practical solutions cho real problems.
+### GitHub Actions Example
+
+```yaml
+name: E2E Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        framework: [selenium, playwright]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run tests
+        run: ./run-tests.sh ${{ matrix.framework }}
+      - uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: test-failures-${{ matrix.framework }}
+          path: |
+            selenium_failure.png
+            playwright-report/
+```
+
+### Parallel vs Sequential Execution
+
+**Recommendation:** Sequential execution
+
+**Reasoning:**
+- Demo site may throttle concurrent requests
+- Shared demo environment could cause race conditions
+- Minimal time savings (2-3 minutes) vs. increased flakiness
+- Easier to debug when tests run one at a time
+
+## Test Case TC-E2E-001 Design
+
+### Scope
+Guest checkout flow from product browsing to order confirmation
+
+### Preconditions
+- PrestaShop demo site accessible
+- No authentication required
+- Test data constants defined
+
+### Test Flow
+1. Navigate to demo site
+2. Switch to iframe context
+3-5. Product selection and cart
+6-7. Proceed to checkout
+8-9. Fill customer information
+10-12. Shipping method selection
+13-14. Payment method and terms
+15-16. Place order and verify confirmation
+
+### Postconditions
+- Order confirmation page displayed
+- Order reference number generated
+- Test artifacts captured (screenshots, videos, traces)
+
+### Known Limitations
+- Demo site resets periodically
+- Mock payment only (Pay by Check)
+- No real email verification
+- Fails at step 6 due to modal selector change
+
+## Key Takeaways
+
+1. **Iframe handling is critical** - Most common failure point for new users
+2. **Wait strategies differ significantly** - Playwright auto-wait vs Selenium explicit waits
+3. **Optional elements need defensive coding** - Try-catch for resilience
+4. **Consistent logging aids debugging** - Simple, clear format without excessive decoration
+5. **Cross-framework parity requires discipline** - Update both tests together
+6. **JavaScript executor is powerful fallback** - Selenium's ace card for tricky elements
+7. **Modern doesn't mean better** - Choose framework based on team and context
