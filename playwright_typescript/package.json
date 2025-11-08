@@ -1,0 +1,17 @@
+{
+  "name": "prestashop-e2e-playwright",
+  "version": "1.0.0",
+  "description": "PrestaShop E2E Purchase Tests with Playwright",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug"
+  },
+  "keywords": ["playwright", "e2e", "prestashop", "testing"],
+  "author": "QA Automation Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.10.0"
+  }
+}
