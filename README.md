@@ -30,6 +30,21 @@ Complete test documentation and automation for PrestaShop demo storefront end-to
 
 ## 🚀 Run Instructions
 
+### Quick Start (Run All Tests)
+
+```bash
+# Run both Selenium and Playwright tests
+./run-tests.sh
+
+# Run only Selenium test
+./run-tests.sh selenium
+
+# Run only Playwright test
+./run-tests.sh playwright
+```
+
+---
+
 ### Option 1: Selenium (Python)
 
 #### Prerequisites
