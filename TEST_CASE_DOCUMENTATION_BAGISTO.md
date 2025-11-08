@@ -11,15 +11,19 @@
 
 ## Test Suite Overview
 
-This test suite validates shopping cart behavior through various state transitions:
+This test suite validates shopping cart behavior through various state transitions and edge cases:
 
 ```
 EMPTY → ADD_ITEM → CART_ACTIVE → MODIFY → CHECKOUT → ORDER_PLACED → EMPTY
-         ↓           ↓            ↓
-         └─ BROWSE ─┘            └─ REMOVE_ALL → EMPTY
+         ↓           ↓            ↓            ↓
+         └─ BROWSE ─┘            └─ REMOVE ─┘  └─ ABANDONED (preserved)
+                                 ↓
+                          SAVE_FOR_LATER
+                          OUT_OF_STOCK
+                          PRICE_CHANGE
 ```
 
-### Test Cases
+### Core Test Cases
 
 1. **TC-CART-001:** Empty Cart Verification
 2. **TC-CART-002:** Add Single Product to Cart
@@ -28,6 +32,14 @@ EMPTY → ADD_ITEM → CART_ACTIVE → MODIFY → CHECKOUT → ORDER_PLACED → 
 5. **TC-CART-005:** Cart Persistence After Navigation
 6. **TC-CHECKOUT-001:** Guest Checkout Complete Flow
 7. **TC-CHECKOUT-002:** Cart State After Order Completion
+
+### Extended Test Cases (Session & Edge Cases)
+
+8. **TC-SESSION-001:** Cart Persistence After Browser Restart
+9. **TC-SESSION-002:** Abandoned Checkout Cart Preservation
+10. **TC-WISHLIST-001:** Save Item for Later
+11. **TC-INVENTORY-001:** Out of Stock Product Handling
+12. **TC-PRICE-001:** Price Change Notification
 
 ---
 
@@ -392,6 +404,328 @@ const addToCart = page.locator('[aria-label="Add to cart"]');
 - Persistence ✓
 - Checkout ✓
 - Post-order reset ✓
+
+---
+
+## TC-SESSION-001: Cart Persistence After Browser Restart
+
+**Test ID:** TC-SESSION-001  
+**Priority:** High  
+**Type:** Functional - Session Management  
+**Automation:** Manual + Selenium (with cookie storage)
+
+### Objective
+
+Verify that cart contents persist after browser is closed and reopened (simulating session preservation).
+
+### Preconditions
+
+- Product added to cart
+- Browser supports cookies/localStorage
+
+### Test Steps
+
+| Step | Action | Expected Result |
+|------|--------|----------------|
+| 1 | Add product to cart | Cart count = 1 |
+| 2 | Note session cookie/localStorage | Cart data stored |
+| 3 | Close browser completely | Browser closed |
+| 4 | Wait 1 minute | Simulate brief inactivity |
+| 5 | Reopen browser | Browser starts fresh |
+| 6 | Navigate to Bagisto | Homepage loads |
+| 7 | Check cart counter | Cart still shows 1 item |
+| 8 | Open cart view | Product still present |
+
+### Expected Results
+
+- Cart data persists via cookies/localStorage
+- Session ID maintained or cart restored
+- Product details unchanged
+- User can continue shopping without re-adding items
+
+### Test Data
+
+N/A (Uses existing cart data)
+
+### Notes
+
+**Implementation:**
+- Selenium: Save/restore cookies between sessions
+- Playwright: context.storageState() for session persistence
+- Verify localStorage keys: `bagisto_cart`, `session_id`, etc.
+
+---
+
+## TC-SESSION-002: Abandoned Checkout Cart Preservation
+
+**Test ID:** TC-SESSION-002  
+**Priority:** Medium  
+**Type:** Functional - Abandoned Cart  
+**Automation:** Selenium + Playwright
+
+### Objective
+
+Verify that cart remains incomplete (preserved) when user abandons checkout process.
+
+### Preconditions
+
+- Product in cart
+- User at checkout page
+
+### Test Steps
+
+| Step | Action | Expected Result |
+|------|--------|----------------|
+| 1 | Add product to cart | Cart count = 1 |
+| 2 | Proceed to checkout | Checkout page loads |
+| 3 | Fill partial information (email only) | Email entered |
+| 4 | Navigate away (homepage) | User leaves checkout |
+| 5 | Wait 30 seconds | Simulate brief abandonment |
+| 6 | Check cart counter | Cart still shows 1 item |
+| 7 | Return to checkout | Checkout page reloads |
+| 8 | Verify form state | Email may be pre-filled (depends on system) |
+
+### Expected Results
+
+- Cart NOT cleared when abandoning checkout
+- Cart data preserved for continued shopping
+- Incomplete order NOT created in system
+- User can resume checkout later
+
+### Test Data
+
+| Field | Value |
+|-------|-------|
+| Email | abandoned.user@test.com |
+
+### Notes
+
+- Typical e-commerce platforms preserve cart for 24-72 hours
+- Some systems send abandoned cart emails
+- Demo environment may have shorter preservation time
+
+---
+
+## TC-WISHLIST-001: Save Item for Later
+
+**Test ID:** TC-WISHLIST-001  
+**Priority:** Low  
+**Type:** Functional - Wishlist/Save for Later  
+**Automation:** Selenium + Playwright (if feature exists)
+
+### Objective
+
+Verify user can move items from cart to "Save for Later" or wishlist.
+
+### Preconditions
+
+- Product in cart
+- "Save for Later" feature available
+
+### Test Steps
+
+| Step | Action | Expected Result |
+|------|--------|----------------|
+| 1 | Add product to cart | Cart count = 1 |
+| 2 | Open cart page | Cart displays product |
+| 3 | Click "Save for Later" button | Button clickable |
+| 4 | Verify cart updated | Cart count = 0 |
+| 5 | Verify saved items section | Product appears in "Saved" list |
+| 6 | Click "Move to Cart" | Product returns to cart |
+| 7 | Verify cart restored | Cart count = 1 |
+
+### Expected Results
+
+- Product removed from active cart
+- Product appears in saved/wishlist section
+- User can restore item to cart later
+- Cart subtotal excludes saved items
+
+### Test Data
+
+N/A
+
+### Notes
+
+**Feature Availability:**
+- Bagisto may call this "Wishlist" instead of "Save for Later"
+- Some platforms require login for this feature
+- Guest users may have limited save functionality
+
+**Automation Strategy:**
+- Check if feature exists on site first
+- If not present, mark test as SKIPPED
+- Log feature availability for documentation
+
+---
+
+## TC-INVENTORY-001: Out of Stock Product Handling
+
+**Test ID:** TC-INVENTORY-001  
+**Priority:** High  
+**Type:** Functional - Inventory Management  
+**Automation:** Manual (requires stock manipulation) / API-assisted
+
+### Objective
+
+Verify system prevents checkout when product becomes out of stock after being added to cart.
+
+### Preconditions
+
+- Ability to change product stock (admin access or API)
+- Product with low stock
+
+### Test Steps
+
+| Step | Action | Expected Result |
+|------|--------|----------------|
+| 1 | Identify product with stock = 2 | Product available |
+| 2 | Add product to cart (qty=1) | Cart updated successfully |
+| 3 | Simulate stock change to 0 (admin/API) | Product now out of stock |
+| 4 | Return to cart page | Cart displays product |
+| 5 | Attempt to proceed to checkout | System blocks checkout |
+| 6 | Verify error message | "Product out of stock" shown |
+| 7 | Verify product status in cart | Marked as unavailable |
+
+### Expected Results
+
+- System detects stock change
+- Checkout button disabled or shows error
+- Clear error message displayed
+- User prompted to remove item or check alternatives
+- Cart cannot be finalized with out-of-stock items
+
+### Test Data
+
+| Field | Value |
+|-------|-------|
+| Product | Test product with controllable stock |
+| Initial Stock | 2 |
+| Changed Stock | 0 |
+
+### Notes
+
+**Manual Steps Required:**
+1. Access Bagisto admin: `https://commerce.bagisto.com/admin`
+2. Navigate to product inventory
+3. Update stock quantity
+4. Or use API endpoint: `PUT /api/products/{id}/inventory`
+
+**Automation Approach:**
+- Use Bagisto Admin API for stock manipulation
+- Requires admin credentials (not available in public demo)
+- Alternative: Mock scenario in documentation only
+
+---
+
+## TC-PRICE-001: Price Change Notification
+
+**Test ID:** TC-PRICE-001  
+**Priority:** Medium  
+**Type:** Functional - Price Management  
+**Automation:** Manual (requires price manipulation) / API-assisted
+
+### Objective
+
+Verify system notifies user when product price changes after being added to cart.
+
+### Preconditions
+
+- Ability to change product price (admin access)
+- Product in cart
+
+### Test Steps
+
+| Step | Action | Expected Result |
+|------|--------|----------------|
+| 1 | Add product to cart (price=$100) | Cart shows subtotal=$100 |
+| 2 | Simulate price change to $120 (admin/API) | Price updated in catalog |
+| 3 | Return to cart page | Cart refreshes |
+| 4 | Verify cart subtotal | May show old price ($100) or new ($120) |
+| 5 | Proceed to checkout | System validates prices |
+| 6 | Check for price difference notification | "Price changed" message (if implemented) |
+| 7 | Verify final order total | Uses current price ($120) |
+
+### Expected Results
+
+**Scenario A (Price Updated):**
+- Cart automatically updates to new price
+- Notification: "Product price has changed"
+- User can review and confirm
+
+**Scenario B (Price Locked):**
+- Cart maintains original price temporarily
+- Price synced at checkout validation
+- Clear disclosure of price change
+
+### Test Data
+
+| Field | Initial | Changed |
+|-------|---------|---------|
+| Product Price | $100.00 | $120.00 |
+
+### Notes
+
+**Implementation Varies:**
+- Some platforms lock price when added to cart
+- Others update in real-time
+- Best practice: Notify user before final payment
+
+**Automation Limitations:**
+- Requires admin access to demo (usually restricted)
+- Alternative: Document expected behavior
+- Future: Mock API responses for testing
+
+---
+
+## Test Execution Priority
+
+### Critical Path (Run Always)
+
+1. TC-CART-001 (Empty cart)
+2. TC-CART-002 (Add product)
+3. TC-CHECKOUT-001 (Complete checkout)
+4. TC-CHECKOUT-002 (Cart reset)
+
+### Standard Path (Regular CI/CD)
+
+5. TC-CART-003 (Modify quantity)
+6. TC-CART-004 (Remove product)
+7. TC-CART-005 (Navigation persistence)
+8. TC-SESSION-002 (Abandoned cart)
+
+### Extended Path (Weekly/Release)
+
+9. TC-SESSION-001 (Browser restart - requires cookie handling)
+10. TC-WISHLIST-001 (Save for later - if feature exists)
+11. TC-INVENTORY-001 (Out of stock - requires admin access)
+12. TC-PRICE-001 (Price change - requires admin access)
+
+---
+
+## Success Criteria
+
+**All test cases pass when:**
+
+- Empty state ✓
+- Add product ✓
+- Modify quantity ✓
+- Remove product ✓
+- Persistence ✓
+- Checkout ✓
+- Post-order reset ✓
+- Session preservation ✓
+- Abandoned cart handling ✓
+- Wishlist functionality ✓ (if available)
+- Inventory validation ✓ (manual/API)
+- Price change handling ✓ (manual/API)
+
+**Test Coverage:**
+
+- Core cart operations: 100%
+- Session management: 100%
+- Edge cases: 80% (limited by demo constraints)
+- Admin-required tests: Documentation only
 
 ---
 

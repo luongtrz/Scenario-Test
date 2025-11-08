@@ -1,125 +1,264 @@
-# PrestaShop E2E Test Suite - AI Coding Agent Instructions
+# Bagisto Commerce E2E Test Suite - AI Coding Agent Instructions
 
 ## Project Overview
 
-Dual-framework E2E test automation suite targeting PrestaShop demo storefront. Implements **identical test case (TC-E2E-001)** in both Selenium Python and Playwright TypeScript to demonstrate cross-framework testing patterns.
+Dual-framework E2E test automation suite targeting Bagisto Commerce storefront. Implements **shopping cart state machine test cases** in both Selenium Python and Playwright TypeScript to demonstrate comprehensive cart lifecycle testing.
 
-**SUT Architecture:** PrestaShop demo runs storefront inside an **iframe** (`#framelive`) - all tests must handle this iframe context.
+**Target System:** https://commerce.bagisto.com/ (Laravel-based e-commerce platform)  
+**Key Focus:** Cart state transitions from empty → add → modify → checkout → completion
+
+## Critical Test Architecture
+
+### Bagisto Commerce - Direct DOM Interaction
+
+**NO IFRAME HANDLING REQUIRED** - Unlike PrestaShop, Bagisto renders storefront directly.
+
+```python
+# Selenium - Direct element access
+driver.get("https://commerce.bagisto.com/")
+product = driver.find_element(By.CSS_SELECTOR, ".product-card")
+product.click()
+```
+
+```typescript
+// Playwright - Direct locator
+await page.goto('https://commerce.bagisto.com/');
+const product = page.locator('.product-card').first();
+await product.click();
+```
+
+**Key Difference from PrestaShop:**
+- ❌ No `driver.switch_to.frame()` needed
+- ❌ No `page.frameLocator()` needed
+- ✅ Standard DOM selectors work immediately
 
 ## Critical Developer Workflows
 
 ### Selenium Python (`selenium_python/`)
+
 ```bash
 cd selenium_python
-python3 -m venv venv              # Create virtual environment (Ubuntu/Debian required)
-source venv/bin/activate          # Activate venv
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
+
+# Run Bagisto tests (shopping cart state machine)
+python test_bagisto_cart.py
+
+# Run PrestaShop tests (legacy - preserved for reference)
 python test_e2e_purchase.py
 ```
 
 **Important:** On Ubuntu 24.04+, Python packages must be installed in a virtual environment (PEP 668). Chrome/Chromium must be installed system-wide.
 
-**Key Pattern:** Explicit iframe switching required
+**Key Pattern - Bagisto:** Direct element interaction
 ```python
-iframe = wait.until(EC.presence_of_element_located((By.ID, "framelive")))
-driver.switch_to.frame(iframe)
-# All subsequent interactions happen in iframe context
+# Add to cart
+add_button = driver.find_element(By.CSS_SELECTOR, ".add-to-cart, button[aria-label*='Add to cart']")
+add_button.click()
+
+# Verify cart count
+cart_counter = driver.find_element(By.CSS_SELECTOR, ".cart-count, [data-cart-count]")
+count = cart_counter.text
 ```
 
 ### Playwright TypeScript (`playwright_typescript/`)
+
 ```bash
 cd playwright_typescript
 npm install
-npx playwright install chromium  # Required for first-time setup
+npx playwright install chromium
 sudo npx playwright install-deps chromium  # Install system dependencies
-npm test                         # Headless
+npm test                         # Run all tests (headless)
 npm run test:headed              # Visible browser
 npm run test:debug               # Inspector mode
 ```
 
-**Important:** `playwright.config.ts` must include `ignoreHTTPSErrors: true` for the demo site.
+**Important:** `playwright.config.ts` must include `ignoreHTTPSErrors: true` for demo sites.
 
-**Key Pattern:** frameLocator (no context switch needed)
+**Key Pattern - Bagisto:** Auto-wait with multiple selector fallbacks
 ```typescript
-const frameLocator = page.frameLocator('#framelive');
-// All interactions use frameLocator.locator() - stays in main context
+// Try multiple selectors for robustness
+const addToCartSelectors = [
+  'button[aria-label*="Add to cart" i]',
+  '.add-to-cart',
+  'button.btn-add-to-cart'
+];
+
+for (const selector of addToCartSelectors) {
+  const button = page.locator(selector).first();
+  if (await button.isVisible({ timeout: 2000 })) {
+    await button.click();
+    break;
+  }
+}
 ```
 
 ## Project-Specific Conventions
 
-### 1. Iframe Handling is Non-Negotiable
-- **Never** interact with storefront elements without iframe handling
-- Selenium: Must `switch_to.frame()` before any storefront interaction
-- Playwright: Must use `frameLocator('#framelive')` for all storefront selectors
+### 1. Selector Strategy for Bagisto (Vue.js Application)
+
+**Priority Order:**
+1. **`data-*` attributes** - Most stable (if available)
+   ```html
+   <button data-action="add-to-cart"> → [data-action="add-to-cart"]
+   ```
+
+2. **`aria-label` attributes** - Accessibility-first
+   ```html
+   <button aria-label="Add to cart"> → button[aria-label*="Add to cart" i]
+   ```
+
+3. **Stable CSS classes** - Avoid dynamic Vue classes
+   ```html
+   <div class="cart-count"> → .cart-count  (good)
+   <div class="v-1a2b3c"> → avoid (Vue dynamic)
+   ```
+
+4. **Text content** - Last resort, case-insensitive
+   ```typescript
+   page.locator('button:has-text("Add to Cart")')
+   ```
+
+**Why Multiple Selectors?**
+Bagisto uses Vue.js components with dynamic class names. Always provide fallback selectors:
+
+```python
+# Selenium - Try multiple selectors
+selectors = [
+    ".add-to-cart",
+    "button[aria-label*='Add to cart']",
+    "[data-action='add-to-cart']"
+]
+for selector in selectors:
+    try:
+        element = driver.find_element(By.CSS_SELECTOR, selector)
+        if element.is_displayed():
+            element.click()
+            break
+    except:
+        continue
+```
 
 ### 2. Robust Element Interaction Pattern
-Both frameworks use fallback strategies for flaky elements:
+
+**Problem:** Vue.js components may have animations or conditional rendering
+
+**Solution - Wait + Fallback:**
 
 **Selenium:**
 ```python
-# Use JavaScript executor for unreliable clicks
-driver.execute_script("arguments[0].click();", element)
-
-# Try-except blocks for optional elements (privacy checkbox, social title)
+# JavaScript click for stubborn elements
 try:
-    privacy_checkbox = driver.find_element(By.NAME, "psgdpr")
-    if not privacy_checkbox.is_selected():
-        driver.execute_script("arguments[0].click();", privacy_checkbox)
+    element.click()
 except:
-    print("   ℹ Privacy checkbox not found")
+    driver.execute_script("arguments[0].click();", element)
 ```
 
 **Playwright:**
 ```typescript
-// Timeout-scoped interactions for optional fields
+// Try with and without force
 try {
-  const privacyCheckbox = frameLocator.locator('input[name="psgdpr"]');
-  await privacyCheckbox.check({ timeout: 3000 });
+  await element.click({ timeout: 5000 });
 } catch {
-  console.log('   ℹ Privacy checkbox not found');
+  await element.click({ force: true });
 }
 ```
 
 ### 3. Wait Strategy Differences
 
-**Selenium:** Explicit waits required everywhere
-- Use `WebDriverWait(driver, 20)` with `expected_conditions`
-- Add `time.sleep()` for AJAX transitions (1-3 seconds)
+**Bagisto Specifics:**
+- Page transitions: Wait for `networkidle` (AJAX-heavy)
+- Cart updates: Wait 2-3 seconds after actions
+- Form validation: Wait for error/success messages
 
-**Playwright:** Auto-wait built-in
-- Minimal `waitForTimeout()` needed (2-3 seconds for AJAX only)
-- `waitFor({ state: 'visible' })` for critical elements
-
-### 4. Step-by-Step Console Logging Pattern
-Both tests implement identical logging format:
-```
-📍 Step X: [Action description]...
-   ✓ [Success confirmation]
-   ⚠ [Warning for optional elements]
-   ℹ [Informational message]
+**Selenium:**
+```python
+wait = WebDriverWait(driver, 20)
+element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, selector)))
+time.sleep(2)  # AJAX cart update
 ```
 
-Maintain this format when adding new test steps.
+**Playwright:**
+```typescript
+await page.goto('https://commerce.bagisto.com/', { waitUntil: 'networkidle' });
+await addButton.click();
+await page.waitForTimeout(3000);  // Cart count update
+```
 
-### 5. Selector Strategy
-**Prefer this priority:**
-1. `name` attribute (forms: `firstname`, `lastname`, `email`)
-2. `id` attribute (payments: `#payment-option-1`)
-3. `data-*` attributes (`data-button-action='add-to-cart'`)
-4. CSS classes (`.product article .thumbnail`)
+### 4. Test Case Structure - Shopping Cart State Machine
 
-**Avoid:** XPath, text-based selectors (internationalization risk)
+**Current Approach:** 7 core test cases + 5 extended scenarios
 
-## Test Data Standards
+**Core Tests (Always Run):**
+1. TC-CART-001: Empty cart verification
+2. TC-CART-002: Add product to cart
+3. TC-CART-003: Modify quantity
+4. TC-CART-004: Remove product
+5. TC-CART-005: Cart persistence (navigation)
+6. TC-CHECKOUT-001: Complete guest checkout
+7. TC-CHECKOUT-002: Cart reset after order
+
+**Extended Tests (Conditional/Manual):**
+8. TC-SESSION-001: Browser restart persistence
+9. TC-SESSION-002: Abandoned checkout preservation
+10. TC-WISHLIST-001: Save for later
+11. TC-INVENTORY-001: Out-of-stock handling
+12. TC-PRICE-001: Price change notification
+
+**State Machine Flow:**
+```
+EMPTY → ADD → ACTIVE → MODIFY → CHECKOUT → COMPLETE → EMPTY
+         ↓      ↓         ↓
+         └ BROWSE┘        └ REMOVE → EMPTY
+                ↓
+         SAVE_FOR_LATER
+         OUT_OF_STOCK
+         PRICE_CHANGE
+```
+
+### 5. Console Logging Pattern
+
+**Format - Simple and Professional:**
+```
+Step 1: Navigating to Bagisto Commerce...
+Step 2: Locating product...
+  Found product using: .product-card
+Step 3: Adding to cart...
+  Cart count: 1
+TC-CART-002: PASSED
+```
+
+**Avoid:**
+- ❌ Emojis (📍, ✓, ❌)
+- ❌ ASCII art (====)
+- ❌ Excessive decoration
+- ✅ Keep clean, scannable logs
+
+### 6. Test Data Standards
 
 ```python
-# Use consistent test data across both frameworks
+# Selenium
+EMAIL = "john.doe.bagisto@test.com"
 FIRST_NAME = "John"
 LAST_NAME = "Doe"
-EMAIL = "john.doe.{framework}@automation.com"  # Unique per framework
 ADDRESS = "123 Test Street"
-POSTCODE = "10001"
 CITY = "New York"
+POSTCODE = "10001"
+PHONE = "5551234567"
+```
+
+```typescript
+// Playwright - identical values
+const testData = {
+  email: 'john.doe.bagisto@test.com',
+  firstName: 'John',
+  lastName: 'Doe',
+  address: '123 Test Street',
+  city: 'New York',
+  postcode: '10001',
+  phone: '5551234567'
+};
 ```
 
 ## Error Handling Requirements
