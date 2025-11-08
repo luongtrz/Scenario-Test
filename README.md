@@ -35,9 +35,10 @@ cd playwright_typescript
 npm install
 npx playwright install chromium
 sudo npx playwright install-deps chromium  # Ubuntu/Debian
-npm test                    # headless
-npm run test:headed         # visible browser
-npm run test:debug          # debug mode
+npm test                         # run all tests (headless)
+npm test tests/bagisto.cart.checkout.spec.ts --headed    # Bagisto tests (visible)
+npm test tests/prestashop.cart.checkout.spec.ts --headed # PrestaShop tests (visible)
+npm run test:debug               # debug mode
 ```
 
 ## Test Cases
@@ -89,6 +90,13 @@ EMPTY → ADD_ITEM → CART_ACTIVE → MODIFY → CHECKOUT → ORDER → EMPTY
 ## Architecture Note
 
 Unlike PrestaShop (which uses iframe), Bagisto Commerce renders directly - no iframe handling required. Tests interact with standard DOM elements.
+
+**New Test Structure (November 2025):**
+- `tests/bagisto.cart.checkout.spec.ts` - Bagisto shopping cart tests with helper functions
+- `tests/prestashop.cart.checkout.spec.ts` - PrestaShop cart tests with iframe handling
+- Helper functions: `gotoStorefront()`, `openFirstPDP()`, `addToCart()`, `cartCounterText()`
+- Multiple URL fallbacks for demo site resilience
+- Graceful feature detection with `test.skip()`
 
 **Selector Strategy:**
 - `data-*` attributes (preferred)
