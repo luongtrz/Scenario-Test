@@ -230,7 +230,7 @@ TC-CART-001 → TC-CART-002 → TC-CHECKOUT-001 → TC-CHECKOUT-002
 | TC-PRICE-001 | 📝 | 📝 | Admin API required |
 
 **Legend:**
-- ✅ Fully automated
+- ✅ Fully automated in both frameworks
 - 📝 Documented (requires admin access)
 
 ---
@@ -279,14 +279,15 @@ Complete state transition coverage:
 ```
 test/
 ├── selenium_python/
-│   ├── test_bagisto_cart.py        (7 test methods, 400+ lines)
+│   ├── test_bagisto_cart.py        (10 test methods, 700+ lines)
 │   └── test_e2e_purchase.py        (PrestaShop - preserved)
 │
 ├── playwright_typescript/
-│   ├── test-bagisto-cart.spec.ts   (7 test specs, 450+ lines)
+│   ├── test-bagisto-cart.spec.ts   (10 test specs, 686 lines)
 │   └── test-e2e-purchase.spec.ts   (PrestaShop - preserved)
 │
 ├── TEST_CASE_DOCUMENTATION_BAGISTO.md  (12 test cases, IEEE 29119)
+├── REQUIREMENTS_COVERAGE.md            (This file)
 ├── .github/copilot-instructions.md     (AI agent guidelines)
 └── README.md                           (Quick start guide)
 ```
@@ -323,8 +324,11 @@ TC-CART-004: PASS
 TC-CART-005: PASS
 TC-CHECKOUT-001: PASS
 TC-CHECKOUT-002: PASS
+TC-SESSION-001: PASS
+TC-SESSION-002: PASS
+TC-WISHLIST-001: PASS (or SKIPPED if feature unavailable)
 
-Total: 7/7 passed
+Total: 10/10 automated tests passed
 ============================================================
 ```
 

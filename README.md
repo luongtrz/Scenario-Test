@@ -46,17 +46,30 @@ npm run test:debug          # debug mode
 
 ```
 EMPTY → ADD_ITEM → CART_ACTIVE → MODIFY → CHECKOUT → ORDER → EMPTY
+         ↓              ↓           ↓
+    WISHLIST      NAVIGATION   REMOVE → EMPTY
 ```
 
-| Test ID | Description | Status |
-|---------|-------------|--------|
-| TC-CART-001 | Empty Cart Verification | Automated |
-| TC-CART-002 | Add Single Product to Cart | Automated |
-| TC-CART-003 | Modify Cart Quantity | Automated |
-| TC-CART-004 | Remove Product from Cart | Automated |
-| TC-CART-005 | Cart Persistence After Navigation | Automated |
-| TC-CHECKOUT-001 | Guest Checkout Complete Flow | Automated |
-| TC-CHECKOUT-002 | Cart State After Order Completion | Automated |
+| Test ID | Description | Selenium | Playwright |
+|---------|-------------|----------|------------|
+| TC-CART-001 | Empty Cart Verification | ✅ | ✅ |
+| TC-CART-002 | Add Single Product to Cart | ✅ | ✅ |
+| TC-CART-003 | Modify Cart Quantity | ✅ | ✅ |
+| TC-CART-004 | Remove Product from Cart | ✅ | ✅ |
+| TC-CART-005 | Cart Persistence After Navigation | ✅ | ✅ |
+| TC-CHECKOUT-001 | Guest Checkout Complete Flow | ✅ | ✅ |
+| TC-CHECKOUT-002 | Cart State After Order Completion | ✅ | ✅ |
+| TC-SESSION-001 | Cart Persistence After Browser Restart | ✅ | ✅ |
+| TC-SESSION-002 | Abandoned Checkout Cart Preservation | ✅ | ✅ |
+| TC-WISHLIST-001 | Save Item for Later (Wishlist) | ✅ | ✅ |
+| TC-INVENTORY-001 | Out-of-Stock Handling | 📝 | 📝 |
+| TC-PRICE-001 | Price Change Notification | 📝 | 📝 |
+
+**Legend:**
+- ✅ Fully Automated
+- 📝 Documented Only (Requires Admin API)
+
+**Automation Coverage:** 10/12 test cases (83%)
 
 ## Key Features Tested
 
@@ -118,13 +131,21 @@ TC-CART-002: Add Single Product to Cart
 ============================================================
 ...
 
+============================================================
 TEST EXECUTION SUMMARY
 ============================================================
 TC-CART-001: PASS
 TC-CART-002: PASS
+TC-CART-003: PASS
+TC-CART-004: PASS
+TC-CART-005: PASS
 TC-CHECKOUT-001: PASS
+TC-CHECKOUT-002: PASS
+TC-SESSION-001: PASS
+TC-SESSION-002: PASS
+TC-WISHLIST-001: PASS (or SKIPPED)
 
-Total: 3/3 passed
+Total: 10/10 passed
 ============================================================
 ```
 
@@ -148,9 +169,10 @@ jobs:
 |--------|-----------------------|-------------------|
 | **Target** | demo.prestashop.com | commerce.bagisto.com |
 | **Architecture** | Iframe-based | Direct DOM |
-| **Test Cases** | 1 E2E test (16 steps) | 7 test cases (state machine) |
-| **Complexity** | Single checkout flow | Cart lifecycle + checkout |
-| **Selectors** | `name`, `id` attributes | `data-*`, `aria-label` |
+| **Test Cases** | 1 E2E test (16 steps) | 10 automated + 2 documented |
+| **Complexity** | Single checkout flow | Complete cart lifecycle |
+| **Selectors** | `name`, `id` attributes | `data-*`, `aria-label`, CSS |
+| **Frameworks** | Selenium + Playwright | Selenium + Playwright (full parity) |
 
 ---
 

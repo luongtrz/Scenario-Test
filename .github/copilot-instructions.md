@@ -188,7 +188,7 @@ await page.waitForTimeout(3000);  // Cart count update
 
 ### 4. Test Case Structure - Shopping Cart State Machine
 
-**Current Approach:** 7 core test cases + 5 extended scenarios
+**Current Implementation:** 10 automated test cases + 2 documented
 
 **Core Tests (Always Run):**
 1. TC-CART-001: Empty cart verification
@@ -199,22 +199,28 @@ await page.waitForTimeout(3000);  // Cart count update
 6. TC-CHECKOUT-001: Complete guest checkout
 7. TC-CHECKOUT-002: Cart reset after order
 
-**Extended Tests (Conditional/Manual):**
+**Extended Tests (Session & Features):**
 8. TC-SESSION-001: Browser restart persistence
 9. TC-SESSION-002: Abandoned checkout preservation
 10. TC-WISHLIST-001: Save for later
+
+**Documented Only (Require Admin API):**
 11. TC-INVENTORY-001: Out-of-stock handling
 12. TC-PRICE-001: Price change notification
 
 **State Machine Flow:**
 ```
 EMPTY → ADD → ACTIVE → MODIFY → CHECKOUT → COMPLETE → EMPTY
-         ↓      ↓         ↓
-         └ BROWSE┘        └ REMOVE → EMPTY
-                ↓
-         SAVE_FOR_LATER
-         OUT_OF_STOCK
-         PRICE_CHANGE
+         ↓      ↓         ↓         ↓
+         └ BROWSE┘        │         └ ABANDON (preserved)
+                ↓         │
+         NAVIGATION       └ REMOVE → EMPTY
+         (TC-005)
+         
+Extended branches:
+- SAVE_FOR_LATER (TC-WISHLIST-001)
+- OUT_OF_STOCK (TC-INVENTORY-001)
+- PRICE_CHANGE (TC-PRICE-001)
 ```
 
 ### 5. Console Logging Pattern
