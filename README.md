@@ -1,49 +1,63 @@
-# 🛒 PrestaShop E2E Purchase Test Suite
+# 🛒 PrestaShop E2E Test Suite
 
-Complete test documentation and automation for PrestaShop demo storefront end-to-end purchase flow.
+> **Dual-Framework Testing**: Cùng một test case được implement bằng cả **Selenium (Python)** và **Playwright (TypeScript)** để demo cross-framework testing patterns.
 
----
+## 📖 Tổng Quan
 
-## 📋 Test Case Documentation
+Project này là bộ test automation end-to-end cho PrestaShop demo storefront. Test case chính (TC-E2E-001) mô phỏng quy trình mua hàng hoàn chỉnh của khách vãng lai (guest checkout).
 
-### TC-E2E-001: Guest Checkout - Happy Path
+### ⚠️ Kiến Trúc Quan Trọng
 
-**Objective:** Verify that a guest user can successfully complete a purchase from product selection to order confirmation.
-
-**Test Type:** End-to-End Acceptance Test  
-**Priority:** High (P1)  
-**Status:** ✅ Automated
-
-**Coverage:**
-- Product browsing and selection
-- Add to cart functionality
-- Guest checkout process
-- Personal information validation
-- Address entry
-- Shipping method selection
-- Payment method selection
-- Terms acceptance
-- Order placement
-- Order confirmation verification
+PrestaShop demo chạy storefront bên trong một **iframe** (`#framelive`). Đây là điểm khác biệt quan trọng - tất cả các test đều phải xử lý iframe context này.
 
 ---
 
-## 🚀 Run Instructions
+## 🚀 Quick Start
 
-### Quick Start (Run All Tests)
+### Cách Đơn Giản Nhất - Chạy Tất Cả Tests
 
 ```bash
-# Run both Selenium and Playwright tests
 ./run-tests.sh
+```
 
-# Run only Selenium test
+### Chạy Từng Framework
+
+```bash
+# Chỉ chạy Selenium Python
 ./run-tests.sh selenium
 
-# Run only Playwright test
+# Chỉ chạy Playwright TypeScript  
 ./run-tests.sh playwright
 ```
 
 ---
+
+## 📋 Test Case TC-E2E-001: Guest Checkout
+
+**Mục tiêu:** Verify khách vãng lai có thể hoàn tất quy trình mua hàng từ đầu đến cuối.
+
+**Test Flow (16 bước):**
+1. ️Navigate → PrestaShop demo
+2. ️Switch → Iframe context (`#framelive`)
+3. ️Locate → Sản phẩm đầu tiên
+4. ️Click → Xem chi tiết sản phẩm
+5. ️Click → "Add to Cart"
+6. ️Click → "Proceed to Checkout" (modal)
+7. ️Click → "Proceed to Checkout" (cart page)
+8-9. Fill → Thông tin cá nhân (tên, email, địa chỉ)
+10. ️Continue → Shipping method
+11. Confirm → Phương thức vận chuyển
+12. ️Continue → Payment method
+13. Select → "Pay by Check"
+14. Check → Terms and Conditions
+15. Click → "Place Order"
+16. ️Verify → Order confirmation
+
+**Status:** ⚠️ Hiện tại pass 5/16 bước (vấn đề với selector tại bước 6)
+
+---
+
+## 🔧 Setup Chi Tiết
 
 ### Option 1: Selenium (Python)
 
