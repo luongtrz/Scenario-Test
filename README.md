@@ -1,34 +1,39 @@
 # 🛒 PrestaShop E2E Test Suite
 
-> **Dual-Framework Testing**: Cùng một test case được implement bằng cả **Selenium (Python)** và **Playwright (TypeScript)** để demo cross-framework testing patterns.
+> **Dual-Framework Testing:** Cùng một test case được implement bằng cả **Selenium (Python)** và **Playwright (TypeScript)** để demo cross-framework testing patterns.
 
-## 📖 Tổng Quan
-
-Project này là bộ test automation end-to-end cho PrestaShop demo storefront. Test case chính (TC-E2E-001) mô phỏng quy trình mua hàng hoàn chỉnh của khách vãng lai (guest checkout).
-
-### ⚠️ Kiến Trúc Quan Trọng
-
-PrestaShop demo chạy storefront bên trong một **iframe** (`#framelive`). Đây là điểm khác biệt quan trọng - tất cả các test đều phải xử lý iframe context này.
+[![Selenium](https://img.shields.io/badge/Selenium-4.15.2-43B02A?logo=selenium)](https://selenium.dev)
+[![Playwright](https://img.shields.io/badge/Playwright-1.40.0-2EAD33?logo=playwright)](https://playwright.dev)
+[![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://python.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?logo=typescript&logoColor=white)](https://typescriptlang.org)
 
 ---
 
 ## 🚀 Quick Start
 
-### Cách Đơn Giản Nhất - Chạy Tất Cả Tests
-
 ```bash
+# Chạy tất cả tests (tự động cài dependencies)
 ./run-tests.sh
+
+# Hoặc chạy riêng từng framework
+./run-tests.sh selenium    # Python + Selenium
+./run-tests.sh playwright  # TypeScript + Playwright
 ```
 
-### Chạy Từng Framework
+**Lần đầu chạy?** → Đọc [GETTING_STARTED.md](GETTING_STARTED.md) để setup environment.
 
-```bash
-# Chỉ chạy Selenium Python
-./run-tests.sh selenium
+---
 
-# Chỉ chạy Playwright TypeScript  
-./run-tests.sh playwright
-```
+## 📚 Documentation
+
+Không biết đọc file nào? → Xem [DOCS_GUIDE.md](DOCS_GUIDE.md)
+
+| File | Mô Tả | Audience |
+|------|-------|----------|
+| [GETTING_STARTED.md](GETTING_STARTED.md) | 🎯 Quick start, cài đặt, troubleshooting | Beginners |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | 🏗️ Design patterns, technical decisions | Developers |
+| [TEST_CASE_DOCUMENTATION.md](TEST_CASE_DOCUMENTATION.md) | 📝 Test design chi tiết (IEEE 29119) | QA Engineers |
+| [.github/copilot-instructions.md](.github/copilot-instructions.md) | 🤖 AI coding agent guidelines | AI Assistants |
 
 ---
 
@@ -37,29 +42,47 @@ PrestaShop demo chạy storefront bên trong một **iframe** (`#framelive`). Đ
 **Mục tiêu:** Verify khách vãng lai có thể hoàn tất quy trình mua hàng từ đầu đến cuối.
 
 **Test Flow (16 bước):**
-1. ️Navigate → PrestaShop demo
-2. ️Switch → Iframe context (`#framelive`)
-3. ️Locate → Sản phẩm đầu tiên
-4. ️Click → Xem chi tiết sản phẩm
-5. ️Click → "Add to Cart"
-6. ️Click → "Proceed to Checkout" (modal)
-7. ️Click → "Proceed to Checkout" (cart page)
-8-9. Fill → Thông tin cá nhân (tên, email, địa chỉ)
-10. ️Continue → Shipping method
-11. Confirm → Phương thức vận chuyển
-12. ️Continue → Payment method
-13. Select → "Pay by Check"
-14. Check → Terms and Conditions
-15. Click → "Place Order"
-16. ️Verify → Order confirmation
 
-**Status:** ⚠️ Hiện tại pass 5/16 bước (vấn đề với selector tại bước 6)
+1. Navigate → PrestaShop demo
+2. Switch → Iframe context (`#framelive`) ⚠️ **Critical!**
+3. Locate → Sản phẩm đầu tiên
+4. Click → Xem chi tiết
+5. Add to Cart → Thêm vào giỏ
+6. Proceed to Checkout → Từ modal
+7. Proceed to Checkout → Từ cart page
+8-9. Fill Form → Thông tin cá nhân & địa chỉ
+10. Continue → Shipping method
+11. Confirm → Phương thức vận chuyển
+12. Continue → Payment method
+13. Select → "Pay by Check"
+14. Accept → Terms and Conditions
+15. Place Order → Submit
+16. Verify → Order confirmation
+
+**Current Status:** ⚠️ Pass 5/16 steps (failing at step 6 - checkout modal selector issue)
 
 ---
 
-## 🔧 Setup Chi Tiết
+## ⚠️ Kiến Trúc Quan Trọng
 
-### Option 1: Selenium (Python)
+PrestaShop demo chạy storefront bên trong **iframe `#framelive`**. Đây là điểm khác biệt quan trọng nhất!
+
+### Selenium - Explicit Context Switch
+```python
+iframe = driver.find_element(By.ID, "framelive")
+driver.switch_to.frame(iframe)
+# Bây giờ mới interact được với storefront
+```
+
+### Playwright - frameLocator API
+```typescript
+const frameLocator = page.frameLocator('#framelive');
+// Tất cả interactions dùng frameLocator
+```
+
+→ Chi tiết: [ARCHITECTURE.md](ARCHITECTURE.md#iframe-handling-patterns)
+
+---
 
 #### Prerequisites
 - Python 3.8+
