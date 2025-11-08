@@ -28,9 +28,9 @@ await product.click();
 ```
 
 **Key Difference from PrestaShop:**
-- ❌ No `driver.switch_to.frame()` needed
-- ❌ No `page.frameLocator()` needed
-- ✅ Standard DOM selectors work immediately
+- No `driver.switch_to.frame()` needed
+- No `page.frameLocator()` needed
+- Standard DOM selectors work immediately
 
 ## Critical Developer Workflows
 
@@ -236,10 +236,10 @@ TC-CART-002: PASSED
 ```
 
 **Avoid:**
-- ❌ Emojis (📍, ✓, ❌)
-- ❌ ASCII art (====)
-- ❌ Excessive decoration
-- ✅ Keep clean, scannable logs
+- Emojis
+- ASCII art (====)
+- Excessive decoration
+- Keep clean, scannable logs
 
 ### 6. Test Data Standards
 

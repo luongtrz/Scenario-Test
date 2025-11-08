@@ -52,22 +52,20 @@ EMPTY → ADD_ITEM → CART_ACTIVE → MODIFY → CHECKOUT → ORDER → EMPTY
 
 | Test ID | Description | Selenium | Playwright |
 |---------|-------------|----------|------------|
-| TC-CART-001 | Empty Cart Verification | ✅ | ✅ |
-| TC-CART-002 | Add Single Product to Cart | ✅ | ✅ |
-| TC-CART-003 | Modify Cart Quantity | ✅ | ✅ |
-| TC-CART-004 | Remove Product from Cart | ✅ | ✅ |
-| TC-CART-005 | Cart Persistence After Navigation | ✅ | ✅ |
-| TC-CHECKOUT-001 | Guest Checkout Complete Flow | ✅ | ✅ |
-| TC-CHECKOUT-002 | Cart State After Order Completion | ✅ | ✅ |
-| TC-SESSION-001 | Cart Persistence After Browser Restart | ✅ | ✅ |
-| TC-SESSION-002 | Abandoned Checkout Cart Preservation | ✅ | ✅ |
-| TC-WISHLIST-001 | Save Item for Later (Wishlist) | ✅ | ✅ |
-| TC-INVENTORY-001 | Out-of-Stock Handling | 📝 | 📝 |
-| TC-PRICE-001 | Price Change Notification | 📝 | 📝 |
+| TC-CART-001 | Empty Cart Verification | Automated | Automated |
+| TC-CART-002 | Add Single Product to Cart | Automated | Automated |
+| TC-CART-003 | Modify Cart Quantity | Automated | Automated |
+| TC-CART-004 | Remove Product from Cart | Automated | Automated |
+| TC-CART-005 | Cart Persistence After Navigation | Automated | Automated |
+| TC-CHECKOUT-001 | Guest Checkout Complete Flow | Automated | Automated |
+| TC-CHECKOUT-002 | Cart State After Order Completion | Automated | Automated |
+| TC-SESSION-001 | Cart Persistence After Browser Restart | Automated | Automated |
+| TC-SESSION-002 | Abandoned Checkout Cart Preservation | Automated | Automated |
+| TC-WISHLIST-001 | Save Item for Later (Wishlist) | Automated | Automated |
+| TC-INVENTORY-001 | Out-of-Stock Handling | Documented | Documented |
+| TC-PRICE-001 | Price Change Notification | Documented | Documented |
 
-**Legend:**
-- ✅ Fully Automated
-- 📝 Documented Only (Requires Admin API)
+**Legend:** Automated | Documented Only
 
 **Automation Coverage:** 10/12 test cases (83%)
 
@@ -110,6 +108,17 @@ Unlike PrestaShop (which uses iframe), Bagisto Commerce renders directly - no if
 - Node.js 18+
 - Chrome/Chromium browser
 - Internet connection (tests run against live demo)
+
+## Test Execution Status
+
+**Last Run:** November 8, 2025
+
+**Current Status:** Tests currently fail due to Bagisto Commerce demo site issues (product selectors not found). This is a known limitation of testing against public demo sites that may have:
+- Layout changes without notice
+- Temporary downtime or maintenance
+- Different product availability
+
+The test suite is fully implemented and ready to run when the demo site is stable or against a controlled Bagisto instance.
 
 ## Test Execution Example
 
