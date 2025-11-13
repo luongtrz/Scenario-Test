@@ -2,10 +2,26 @@
 
 Dual-framework E2E test automation for Bagisto Commerce demo storefront using Selenium (Python) and Playwright (TypeScript).
 
-**Target System:** https://commerce.bagisto.com/  
+**Target System:** https://commerce.bagisto.com/ and https://demo.bagisto.com/  
 **Test Focus:** Shopping cart state transitions and checkout workflows
 
-## Quick Start
+## 🚀 Quick Start
+
+### Interactive Script (Recommended)
+
+```bash
+cd playwright_typescript
+./run-bagisto-tests.sh
+```
+
+Select from menu:
+1. Run all 20 tests (headless)
+2. Run all 20 tests (visible browser) ⭐
+3. Run specific test
+4. Debug mode
+5. View HTML report
+
+### Manual Commands
 
 ```bash
 # Run all tests (auto-installs dependencies)
@@ -16,7 +32,7 @@ Dual-framework E2E test automation for Bagisto Commerce demo storefront using Se
 ./run-tests.sh playwright
 ```
 
-## Manual Setup
+## 📦 Manual Setup
 
 ### Selenium Python
 
@@ -28,18 +44,27 @@ pip install -r requirements.txt
 python test_bagisto_cart.py
 ```
 
-### Playwright TypeScript
+### Playwright TypeScript (⭐ NEW: 20 Test Cases)
 
 ```bash
 cd playwright_typescript
 npm install
 npx playwright install chromium
 sudo npx playwright install-deps chromium  # Ubuntu/Debian
-npm test                         # run all tests (headless)
-npm test tests/bagisto.cart.checkout.spec.ts --headed    # Bagisto tests (visible)
-npm test tests/prestashop.cart.checkout.spec.ts --headed # PrestaShop tests (visible)
-npm run test:debug               # debug mode
+
+# Run NEW Bagisto 20 test suite
+npm run test:bagisto                # headless
+npm run test:bagisto:headed         # visible browser
+
+# Run legacy PrestaShop tests
+npm test                            # all tests
+npm run test:debug                  # debug mode
 ```
+
+**📚 Documentation:**
+- `playwright_typescript/QUICK_START.md` - Quick start guide
+- `playwright_typescript/README_BAGISTO.md` - Full documentation
+- `COMPARISON_PRESTASHOP_VS_BAGISTO.md` - Framework comparison
 
 ## Test Cases
 
