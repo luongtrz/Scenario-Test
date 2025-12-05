@@ -3,7 +3,7 @@
 
 set -e
 
-echo "🚀 Bagisto Selenium Python - Quick Start"
+echo "Bagisto Selenium Python - Quick Start"
 echo "========================================"
 
 # Check if virtual environment exists
@@ -13,25 +13,27 @@ if [ ! -d "venv" ]; then
 fi
 
 # Activate virtual environment
-echo "🔧 Activating virtual environment..."
+echo "Activating virtual environment..."
 source venv/bin/activate
 
 # Install dependencies
-echo "📥 Installing dependencies..."
+echo "Installing dependencies..."
 pip install -q --upgrade pip
 pip install -q -r requirements.txt
 
 # Check if .env exists
 if [ ! -f ".env" ]; then
-    echo "⚠️  WARNING: .env file not found!"
+    echo "WARNING: .env file not found!"
     echo "   Please create .env with your Bagisto credentials:"
-    echo "   BAGISTO_EMAIL=your-email@example.com"
-    echo "   BAGISTO_PASSWORD=your-password"
+    echo "   BAGISTO_ADMIN_EMAIL=your-admin-email@example.com"
+    echo "   BAGISTO_ADMIN_PASSWORD=your-admin-password"
+    echo "   BAGISTO_USER_EMAIL=your-user-email@example.com"
+    echo "   BAGISTO_USER_PASSWORD=your-user-password"
     exit 1
 fi
 
 echo ""
-echo "✅ Setup complete!"
+echo "Setup complete!"
 echo ""
 echo "Run tests with:"
 echo "  pytest tests/test_bagisto_s1_single_checkout.py -v -s"
