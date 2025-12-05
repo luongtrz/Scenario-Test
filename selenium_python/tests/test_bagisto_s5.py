@@ -17,10 +17,10 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from pages.store_page import StorePage
 
 
-class TestBagistoS4OutOfStock:
+class TestBagistoS5StockReduction:
     """S4 - Out of Stock Handling Test Suite"""
     
-    def test_s4_insufficient_stock_blocks_checkout(self, driver, base_url, credentials):
+    def test_s5_stock_reduction_blocks_checkout(self, driver, base_url, credentials):
         """
         S4 – Insufficient stock blocks checkout
         

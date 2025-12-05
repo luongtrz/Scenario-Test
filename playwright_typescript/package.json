@@ -22,7 +22,7 @@
     "test:bagisto:s14:headed": "playwright test tests/bagisto-s14.spec.ts --headed",
     "test:bagisto:s15:headed": "playwright test tests/bagisto-s15.spec.ts --headed",
     "test:bagisto:s16:headed": "playwright test tests/bagisto-s16.spec.ts --headed",
-    "test:bagisto:s17:headed": "playwright test tests/bagisto-s17.spec.ts --headed",
+    "test:bagisto:s13:headed": "playwright test tests/bagisto-s13.spec.ts --headed",
     "test:bagisto:s10:headed": "playwright test tests/bagisto-s10.spec.ts --headed",
     "report": "npx playwright show-report"
   },

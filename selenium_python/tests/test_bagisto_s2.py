@@ -12,10 +12,10 @@ from selenium.common.exceptions import NoSuchElementException
 from pages.store_page import StorePage
 
 
-class TestBagistoB1bRemoveAllProducts:
+class TestBagistoS2RemoveAllProducts:
     """B1b - Remove All Products Edge Case"""
     
-    def test_b1b_remove_all_products_returns_to_empty(self, driver, base_url, credentials):
+    def test_s2_remove_all_products_returns_to_empty(self, driver, base_url, credentials):
         """
         B1b – Remove all products returns cart to empty state
         

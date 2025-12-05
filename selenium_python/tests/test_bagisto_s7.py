@@ -14,10 +14,10 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from pages.store_page import StorePage
 
 
-class TestBagistoS6ShippingMethod:
+class TestBagistoS7ShippingMethod:
     """S6 - Change Shipping Method Test Suite"""
     
-    def test_s6_select_different_shipping_methods(self, driver, base_url, credentials):
+    def test_s7_select_different_shipping_methods(self, driver, base_url, credentials):
         """
         S6 – Select different shipping methods at checkout
         

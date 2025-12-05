@@ -18,10 +18,10 @@ from selenium.webdriver.common.keys import Keys
 from pages.store_page import StorePage
 
 
-class TestBagistoS14DigitalGoods:
+class TestBagistoS10DigitalGoods:
     """S14 - Digital Goods (E-book) Checkout Test Suite"""
     
-    def test_s14_checkout_with_ebook(self, driver, base_url, credentials):
+    def test_s10_checkout_with_ebook(self, driver, base_url, credentials):
         """
         S14 – Checkout with digital e-book product
         

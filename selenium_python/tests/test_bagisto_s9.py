@@ -15,10 +15,10 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from pages.store_page import StorePage
 
 
-class TestBagistoS3PaymentMethods:
+class TestBagistoS9PaymentMethods:
     """S3 - Different Payment Methods Test Suite"""
     
-    def test_s3_checkout_with_payment_methods(self, driver, base_url, credentials):
+    def test_s9_checkout_with_payment_methods(self, driver, base_url, credentials):
         """
         S3 – Checkout with different payment methods
         

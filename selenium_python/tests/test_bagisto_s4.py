@@ -12,10 +12,10 @@ from selenium.common.exceptions import NoSuchElementException
 from pages.store_page import StorePage
 
 
-class TestBagistoS4bZeroStock:
+class TestBagistoS4ZeroStock:
     """S4B - Zero Stock Handling Test"""
     
-    def test_s4b_cannot_add_zero_stock_to_cart(self, driver, base_url, credentials):
+    def test_s4_cannot_add_zero_stock_to_cart(self, driver, base_url, credentials):
         """
         S4B – Cannot add product with zero stock to cart
         
@@ -71,6 +71,8 @@ class TestBagistoS4bZeroStock:
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+        chrome_options.add_argument('--no-sandbox')  # CRITICAL: Required for root user
+        chrome_options.add_argument('--disable-dev-shm-usage')  # Fix shared memory issues
         
         # Check if headless mode from environment
         import os

@@ -15,10 +15,10 @@ from selenium.webdriver.common.keys import Keys
 from pages.store_page import StorePage
 
 
-class TestBagistoS9ReloadDuringCheckout:
+class TestBagistoS12ReloadDuringCheckout:
     """S9 - Reload During Checkout Test Suite"""
     
-    def test_s9_reload_during_order_placement(self, driver, base_url, credentials):
+    def test_s12_reload_during_order_placement(self, driver, base_url, credentials):
         """
         S9 – Click Place Order, reload (F5) during loading, then re-order
         

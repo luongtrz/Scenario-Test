@@ -19,10 +19,10 @@ from webdriver_manager.chrome import ChromeDriverManager
 from pages.store_page import StorePage
 
 
-class TestBagistoS16bConcurrentPlaceOrder:
+class TestBagistoS17ConcurrentPlaceOrder:
     """S16B - Concurrent Place Order Race Condition Test Suite"""
     
-    def test_s16b_concurrent_place_order_race_condition(self, driver, base_url, credentials):
+    def test_s17_concurrent_place_order_race_condition(self, driver, base_url, credentials):
         """
         S16B – Two browsers place order at EXACTLY same time
         

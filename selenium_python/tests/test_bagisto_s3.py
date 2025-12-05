@@ -16,10 +16,10 @@ from selenium.common.exceptions import NoSuchElementException
 from pages.store_page import StorePage
 
 
-class TestBagistoB1cSaveForLater:
+class TestBagistoS3MoveToWishlist:
     """B1c - Save for Later (Wishlist) Test"""
     
-    def test_b1c_save_for_later_moves_to_wishlist(self, driver, base_url, credentials):
+    def test_s3_move_product_to_wishlist(self, driver, base_url, credentials):
         """
         B1c – Save for later moves product to wishlist
         

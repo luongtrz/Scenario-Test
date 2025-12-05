@@ -5,371 +5,362 @@ import { StorePage } from '../pages/StorePage';
 config();
 
 /**
- * S13: B1 → B2 → B3 → B4 → B5 → B5b
- * User clicks Place Order then F5 immediately (0ms)
- * Expected: No duplicate orders; payment not called multiple times
+ * S14: B1 → B2 → B3 → B4 → B5 → B5d
+ * User cancels within "grace window"
+ * Expected: Refund successful; stock returned; order status updated
  */
-test.describe('Bagisto S13 - Immediate F5 After Place Order', () => {
+test.describe('Bagisto S13 – Cancel Order After Payment', () => {
   
-  test('S13 - Place Order then IMMEDIATE F5', async ({ page }) => {
-    console.log('Step 1 (B1): Logging in to save order...');
+  test('S13 – Cancel order then reorder and complete checkout', async ({ page }) => {
+    console.log('Step 1 (B1): Logging in...');
     const store = new StorePage(page);
     await store.login();
     
-    console.log('Step 2 (B2): Checking cart...');
-    await store.openCart();
+    console.log('Step 2: Navigating to order history...');
+    await page.getByRole('button', { name: 'Profile' }).click();
+    await page.waitForTimeout(500);
+    await page.getByRole('link', { name: 'Orders' }).click();
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+    console.log('  ✓ Order history page loaded');
     
-    const initialQtyInputs = page.locator('input[type="hidden"][name="quantity"]');
-    const initialCartCount = await initialQtyInputs.count();
-    console.log(`  ✓ Cart has ${initialCartCount} item(s)`);
+    // Count existing orders BEFORE cancellation
+    const orderRows = page.locator('.row.grid').filter({ 
+      hasNot: page.locator('text=/Order ID|Order Date/i') 
+    });
+    const initialOrderCount = await orderRows.count();
+    console.log(`  Found ${initialOrderCount} existing order(s)`);
     
-    if (initialCartCount === 0) {
-      console.log('  → Cart empty, adding product...');
-      await store.addFirstProductFromHome();
-    } else {
-      console.log('  ✓ Using existing cart items');
+    if (initialOrderCount === 0) {
+      console.log('  ⚠ No orders found - cannot test cancel/reorder flow');
+      console.log('S17: SKIPPED - Need at least one order');
+      return;
     }
     
-    console.log('Step 3 (B5c): Capturing initial order count BEFORE checkout...');
-    await page.goto(process.env.BAGISTO_BASE_URL + '/customer/account/orders', {
-      waitUntil: 'networkidle'
-    });
-    await page.waitForTimeout(2000);
-    
-    const orderRows = page.locator('.row.grid')
-      .filter({ hasNot: page.locator('text=/Order ID|Order Date/i') });
-    
-    const initialOrderCount = await orderRows.count();
-    
-    // Get first order ID to detect new orders (pagination shows only 10 per page)
+    // Get first order ID for reference
     let initialFirstOrderId = '';
     if (initialOrderCount > 0) {
       const firstOrderIdText = await orderRows.first().locator('p').first().textContent();
       initialFirstOrderId = firstOrderIdText?.trim() || '';
-      console.log(`  Initial order count: ${initialOrderCount} (first ID: #${initialFirstOrderId})`);
-    } else {
-      console.log(`  Initial order count: 0`);
+      console.log(`  First order ID: #${initialFirstOrderId}`);
     }
     
-    console.log('Step 4 (B3): Going back to cart...');
-    await page.goto(process.env.BAGISTO_BASE_URL + '/checkout/cart', {
-      waitUntil: 'networkidle'
-    });
-    await page.waitForTimeout(1500);
-    console.log('  ✓ Back at cart page');
-    
-    console.log('Step 5 (B3): Proceeding to checkout...');
-    await store.goCheckout();
-    
-    console.log('Step 6 (B4): Filling shipping address...');
-    await store.fillShippingAddressMinimal();
-    
-    console.log('Step 7 (B5): Selecting shipping and payment methods...');
-    await page.waitForSelector('input[type="radio"][id*="free_free"], input[type="radio"][id*="cashondelivery"]', {
-      timeout: 30000,
-      state: 'attached'
-    });
-    await page.waitForTimeout(2000);
-    
-    const freeShippingLabel = page.locator('label[for="free_free"]').last();
-    if (await freeShippingLabel.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await freeShippingLabel.click();
-      console.log('  ✓ Selected Free Shipping');
-      await page.waitForTimeout(1000);
-    }
-    
-    const codLabel = page.locator('label[for="cashondelivery"]').last();
-    if (await codLabel.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await codLabel.click();
-      console.log('  ✓ Selected Cash on Delivery');
-      await page.waitForTimeout(1000);
-    }
-    
-    console.log('');
-    console.log('=== ORDER #1 - PLACE AND IMMEDIATE F5 ===');
-    console.log('Step 8 (B5c): Clicking Place Order and IMMEDIATE F5...');
-    const placeOrderBtn = page.locator('button:has-text("Place Order")').first();
-    
-    if (await placeOrderBtn.isVisible({ timeout: 10000 }).catch(() => false)) {
-      console.log('  → Clicking Place Order button...');
-      await placeOrderBtn.click();
+    console.log('Step 3 (B5d): Looking for cancellable order...');
+    // Try to find an order that can be cancelled (not already cancelled)
+    // First, check if first order has Cancel link
+    const firstViewBtn = page.locator('.float-right').first();
+    if (await firstViewBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await firstViewBtn.click();
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(2000);
+      console.log('  ✓ Order details page opened');
       
-      console.log('  → IMMEDIATE F5 (< 100ms)!');
-      await page.waitForTimeout(100); // Only 100ms - VERY FAST!
+      // Check if this order has Cancel link
+      const hasCancelLink = await page.getByRole('link', { name: 'Cancel' })
+        .isVisible({ timeout: 2000 })
+        .catch(() => false);
       
-      await page.reload({ waitUntil: 'domcontentloaded' });
-      await page.waitForTimeout(1000);
-      console.log(`  ✓ Page reloaded immediately`);
-      console.log(`  Current URL: ${page.url()}`);
-    } else {
-      console.log('  ⚠ Place Order button not visible!');
-      await page.reload({ waitUntil: 'domcontentloaded' });
-      await page.waitForTimeout(1000);
-    }
-    
-    console.log('');
-    console.log('=== ORDER #2 - PLACE AGAIN AND WAIT FOR COMPLETION ===');
-    console.log('Step 9 (B5c): Placing order again after F5...');
-    console.log('  Current URL: ' + page.url());
-    
-    await page.waitForTimeout(2000);
-    
-    // Check if we need to fill address or if payment options are already visible
-    const paymentOptions = page.locator('input[type="radio"][id*="free_free"], input[type="radio"][id*="cashondelivery"]');
-    const paymentVisible = await paymentOptions.first().isVisible({ timeout: 3000 }).catch(() => false);
-    
-    if (!paymentVisible) {
-      console.log('  → Payment options not visible, filling address first...');
-      await store.fillShippingAddressMinimal();
-    } else {
-      console.log('  → Payment options already visible, proceeding...');
-    }
-    
-    console.log('Step 10 (B5): Selecting payment and placing order #2...');
-    await page.waitForTimeout(1000);
-    
-    // Select shipping method
-    const freeShippingLabel2 = page.locator('label[for="free_free"]').last();
-    if (await freeShippingLabel2.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await freeShippingLabel2.click();
-      console.log('  ✓ Selected Free Shipping');
-      await page.waitForTimeout(500);
-    }
-    
-    // Select payment method
-    const codLabel2 = page.locator('label[for="cashondelivery"]').last();
-    if (await codLabel2.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await codLabel2.click();
-      console.log('  ✓ Selected Cash on Delivery');
-      await page.waitForTimeout(500);
-    }
-    
-    // Click Place Order #2
-    const placeOrderBtn2 = page.locator('button:has-text("Place Order")').first();
-    if (await placeOrderBtn2.isVisible({ timeout: 10000 }).catch(() => false)) {
-      console.log('  → Clicking Place Order #2...');
-      await placeOrderBtn2.click();
-      console.log('  → Waiting for order processing (this may take time)...');
-    }
-    
-    console.log('Step 11 (B5): Waiting for order #2 success page...');
-    await page.waitForURL('**/checkout/onepage/success', { 
-      timeout: 60000, // Increased to 60 seconds
-      waitUntil: 'networkidle' 
-    });
-    console.log('  ✓ Order #2 redirected to success page');
-    await page.waitForTimeout(2000); // Extra wait for page to fully render
-    
-    const orderLink = page.locator('p.text-xl a.text-blue-700[href*="/customer/account/orders/view/"]').first();
-    let secondOrderId = '';
-    if (await orderLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      const orderIdText = await orderLink.textContent();
-      secondOrderId = orderIdText?.trim() || '';
-      console.log(`  ✓ Order #2 created: #${secondOrderId}`);
-    }
-    
-    await page.waitForTimeout(2000);
-    
-    console.log('');
-    console.log('=== VERIFICATION - CHECK FOR DUPLICATE ORDERS ===');
-    console.log('Step 12: Checking orders after both place order attempts...');
-    await page.goto(process.env.BAGISTO_BASE_URL + '/customer/account/orders', {
-      waitUntil: 'networkidle'
-    });
-    await page.waitForTimeout(2000);
-    
-    // Re-query orderRows after navigation
-    const orderRowsFinal = page.locator('.row.grid')
-      .filter({ hasNot: page.locator('text=/Order ID|Order Date/i') });
-    const finalOrderCount = await orderRowsFinal.count();
-    
-    console.log(`  Total orders on page: ${finalOrderCount}`);
-    
-    // Count NEW orders by iterating until we hit the initial order ID
-    let actualNewOrders = 0;
-    for (let i = 0; i < finalOrderCount; i++) {
-      const row = orderRowsFinal.nth(i);
-      const orderIdText = await row.locator('p').first().textContent();
-      const orderId = orderIdText?.trim() || '';
-      
-      if (orderId === initialFirstOrderId) {
-        // Found the initial order, stop counting
-        console.log(`  → Found initial order #${initialFirstOrderId} at position ${i + 1}`);
-        break;
-      }
-      
-      actualNewOrders++;
-      console.log(`  → New order #${i + 1}: #${orderId}`);
-    }
-    
-    console.log(`  Total NEW orders created: ${actualNewOrders}`);
-    
-    // If 2 orders were created, compare them for duplicates
-    if (actualNewOrders === 2) {
-      console.log('');
-      console.log('Step 13 (B5c): ⚠ 2 ORDERS CREATED - Comparing for duplicate detection...');
-      
-      // Get first 2 order IDs from the list
-      const order1Row = orderRowsFinal.nth(0);
-      const order1IdText = await order1Row.locator('p').first().textContent();
-      const order1Id = order1IdText?.trim() || '';
-      
-      const order2Row = orderRowsFinal.nth(1);
-      const order2IdText = await order2Row.locator('p').first().textContent();
-      const order2Id = order2IdText?.trim() || '';
-      
-      console.log(`  → Comparing Order #${order1Id} vs Order #${order2Id}...`);
-      
-      // Load first order by clicking link from orders page
-      const order1Link = page.locator(`a[href*="/orders/view/${order1Id}"]`).first();
-      if (await order1Link.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await order1Link.click();
-        await page.waitForLoadState('networkidle');
-        await page.waitForTimeout(3000);
+      if (!hasCancelLink) {
+        console.log('  → First order already cancelled, checking other orders...');
         
-        // Extract Order #1 details
-        let order1GrandTotal = 'N/A';
-        let order1ProductName = 'N/A';
-        
-        try {
-          const grandTotalText = await page.getByText('Grand Total $').first().textContent({ timeout: 3000 });
-          if (grandTotalText) {
-            const match = grandTotalText.match(/\$[\d,]+\.?\d*/);
-            if (match) order1GrandTotal = match[0];
-          }
-        } catch (e) {
-          console.log(`    ⚠ Could not extract Grand Total for Order #${order1Id}`);
-        }
-        
-        try {
-          const productCell = page.getByRole('cell').filter({ hasText: /^[A-Z]/ }).first();
-          const productName = await productCell.textContent({ timeout: 2000 });
-          if (productName) order1ProductName = productName.trim();
-        } catch (e) {
-          const productNames = page.locator('p[class*="text"]').filter({ hasText: /^[A-Z]/ });
-          const names = await productNames.allTextContents();
-          if (names.length > 0) order1ProductName = names[0].trim();
-        }
-        
-        console.log(`    Order #${order1Id}: ${order1GrandTotal}`);
-        console.log(`    Product: ${order1ProductName.substring(0, 50)}...`);
-        
-        // Navigate back to orders page
+        // Go back to order list
         await page.goto(process.env.BAGISTO_BASE_URL + '/customer/account/orders', {
           waitUntil: 'networkidle'
         });
         await page.waitForTimeout(2000);
         
-        console.log(`  → Loading Order #${order2Id} details...`);
-        
-        // Load second order
-        const order2Link = page.locator(`a[href*="/orders/view/${order2Id}"]`).first();
-        if (await order2Link.isVisible({ timeout: 5000 }).catch(() => false)) {
-          await order2Link.click();
+        // Try second order
+        const secondViewBtn = page.locator('.float-right').nth(1);
+        if (await secondViewBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+          await secondViewBtn.click();
           await page.waitForLoadState('networkidle');
-          await page.waitForTimeout(3000);
+          await page.waitForTimeout(2000);
+          console.log('  ✓ Checking second order...');
           
-          // Extract Order #2 details
-          let order2GrandTotal = 'N/A';
-          let order2ProductName = 'N/A';
+          const hasCancelLink2 = await page.getByRole('link', { name: 'Cancel' })
+            .isVisible({ timeout: 2000 })
+            .catch(() => false);
           
-          try {
-            const grandTotalText = await page.getByText('Grand Total $').first().textContent({ timeout: 3000 });
-            if (grandTotalText) {
-              const match = grandTotalText.match(/\$[\d,]+\.?\d*/);
-              if (match) order2GrandTotal = match[0];
+          if (!hasCancelLink2) {
+            console.log('  ⚠ No cancellable orders found - creating new order first...');
+            console.log('');
+            console.log('Step 3.5: Creating new order to cancel...');
+            
+            // Add product and checkout quickly
+            await store.addFirstProductFromHome();
+            await store.goCheckout();
+            await store.fillShippingAddressMinimal();
+            
+            // Wait for shipping/payment methods to load
+            await page.waitForTimeout(2000);
+            
+            // Select shipping method (Free Shipping)
+            const freeShippingLbl = page.locator('label[for="free_free"]').last();
+            if (await freeShippingLbl.isVisible({ timeout: 3000 }).catch(() => false)) {
+              await freeShippingLbl.click();
+              await page.waitForTimeout(1000);
+              console.log('  ✓ Free Shipping selected');
             }
-          } catch (e) {
-            console.log(`    ⚠ Could not extract Grand Total for Order #${order2Id}`);
+            
+            // Select payment method (COD)
+            const codLabel = page.locator('label[for="cashondelivery"]').last();
+            if (await codLabel.isVisible({ timeout: 3000 }).catch(() => false)) {
+              await codLabel.click({ force: true });
+              await page.waitForTimeout(2000);
+              console.log('  ✓ Cash On Delivery selected');
+            }
+            
+            // Scroll and place order
+            await page.keyboard.press('End');
+            await page.waitForTimeout(1000);
+            
+            const placeOrderBtn = page.locator('button:has-text("Place Order")').first();
+            if (await placeOrderBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+              await placeOrderBtn.click();
+              await page.waitForURL('**/checkout/onepage/success', { timeout: 60000 });
+              console.log('  ✓ New order created');
+              
+              // Click order link to go to order details
+              const orderLink = page.locator('p.text-xl a.text-blue-700[href*="/orders/view/"]').first();
+              if (await orderLink.isVisible({ timeout: 5000 })) {
+                const newOrderId = await orderLink.textContent();
+                console.log(`  ✓ New order ID: #${newOrderId?.trim()}`);
+                await orderLink.click();
+                await page.waitForLoadState('networkidle');
+                await page.waitForTimeout(2000);
+              }
+            } else {
+              console.log('  ⚠ Could not place order');
+              return;
+            }
           }
-          
-          try {
-            const productCell = page.getByRole('cell').filter({ hasText: /^[A-Z]/ }).first();
-            const productName = await productCell.textContent({ timeout: 2000 });
-            if (productName) order2ProductName = productName.trim();
-          } catch (e) {
-            const productNames = page.locator('p[class*="text"]').filter({ hasText: /^[A-Z]/ });
-            const names = await productNames.allTextContents();
-            if (names.length > 0) order2ProductName = names[0].trim();
-          }
-          
-          console.log(`    Order #${order2Id}: ${order2GrandTotal}`);
-          console.log(`    Product: ${order2ProductName.substring(0, 50)}...`);
-          
-          // Compare orders
-          console.log('');
-          console.log('  === DUPLICATE COMPARISON ===');
-          const sameTotals = order1GrandTotal !== 'N/A' && order1GrandTotal === order2GrandTotal;
-          const sameProducts = order1ProductName !== 'N/A' && order2ProductName !== 'N/A' && 
-                               order1ProductName === order2ProductName;
-          
-          if (sameTotals && sameProducts) {
-            console.log('  ❌ DUPLICATE CONFIRMED!');
-            console.log(`    Both orders have:`);
-            console.log(`      - Same Grand Total: ${order1GrandTotal}`);
-            console.log(`      - Same Product: ${order1ProductName.substring(0, 60)}...`);
-            console.log('    → IMMEDIATE F5 created duplicate order!');
-          } else {
-            console.log('  ℹ Orders are DIFFERENT:');
-            console.log(`    Order #${order1Id}: ${order1GrandTotal} - ${order1ProductName.substring(0, 40)}...`);
-            console.log(`    Order #${order2Id}: ${order2GrandTotal} - ${order2ProductName.substring(0, 40)}...`);
-            console.log('    → Not duplicate (different products or prices)');
-          }
+        } else {
+          console.log('  ⚠ No other orders available');
+          console.log('S17: SKIPPED - Need a cancellable order');
+          return;
         }
       }
+    } else {
+      console.log('  ⚠ View button not found');
+      return;
     }
     
-    console.log('');
-    console.log('=== ORDER CREATION SUMMARY ===');
-    console.log(`  Initial first order: #${initialFirstOrderId || 'None'}`);
-    console.log(`  New orders created: ${actualNewOrders}`);
-    if (actualNewOrders >= 1 && actualNewOrders <= 3) {
-      // List the new order IDs
-      for (let i = 0; i < Math.min(actualNewOrders, 3); i++) {
-        const row = orderRowsFinal.nth(i);
-        const orderIdText = await row.locator('p').first().textContent();
-        const orderId = orderIdText?.trim() || '';
-        console.log(`    Order #${i + 1}: #${orderId}`);
+    console.log('Step 4 (B5d): Cancelling order...');
+    const cancelLink = page.getByRole('link', { name: 'Cancel' });
+    
+    if (await cancelLink.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await cancelLink.click();
+      await page.waitForTimeout(1000);
+      console.log('  → Clicked Cancel link');
+      
+      // Confirm cancellation with "Agree" button (may trigger navigation or reload)
+      const agreeBtn = page.getByRole('button', { name: 'Agree', exact: true });
+      if (await agreeBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        console.log('  → Confirming cancellation...');
+        
+        // Get current order ID before clicking (for re-navigation)
+        const currentUrl = page.url();
+        
+        // Click without waiting for navigation (noWaitAfter: true)
+        await agreeBtn.click({ noWaitAfter: true });
+        // Wait for action to complete
+        await page.waitForTimeout(3000);
+        console.log('  ✓ Order cancellation confirmed');
+        
+        // CRITICAL: Navigate back to order page to load Reorder button
+        // (reload may fail with ERR_ABORTED if page was detached)
+        console.log('  → Navigating back to order page to load Reorder button...');
+        try {
+          await page.goto(currentUrl, { waitUntil: 'networkidle', timeout: 15000 });
+        } catch {
+          // If direct navigation fails, try from order list
+          await page.goto(process.env.BAGISTO_BASE_URL + '/customer/account/orders', {
+            waitUntil: 'networkidle'
+          });
+          await page.waitForTimeout(1000);
+          const firstViewBtn = page.locator('.float-right').first();
+          await firstViewBtn.click();
+          await page.waitForLoadState('networkidle');
+        }
+        await page.waitForTimeout(2000);
+      }
+    } else {
+      console.log('  ⚠ Cancel link not found - order may not be cancellable');
+      console.log('S17: SKIPPED - Cannot test reorder without cancellation');
+      return;
+    }
+    
+    console.log('Step 5: Reordering cancelled order...');
+    // After cancellation and refresh, Reorder link should be visible
+    const reorderLink = page.getByRole('link', { name: 'Reorder' });
+    const hasReorderLink = await reorderLink.isVisible({ timeout: 3000 }).catch(() => false);
+    
+    if (hasReorderLink) {
+      await reorderLink.click();
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(2000);
+      console.log('  ✓ Reorder clicked - items added to cart');
+    } else {
+      console.log('  ⚠ Reorder link not found after refresh');
+      console.log('  ℹ Demo may not support reorder for cancelled orders');
+      console.log('S17: PARTIAL - Cancel worked, but reorder not available');
+      return;
+    }
+    
+    console.log('Step 6 (B3): Proceeding to checkout...');
+    const proceedLink = page.getByRole('link', { name: 'Proceed To Checkout' });
+    if (await proceedLink.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await proceedLink.click();
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(2000);
+      console.log('  ✓ Checkout page loaded');
+    } else {
+      console.log('  ⚠ Proceed To Checkout not found');
+      return;
+    }
+    
+    console.log('Step 7 (B4): Checking if address form needed...');
+    await page.waitForTimeout(2000);
+    
+    // Dismiss cookie consent if present
+    const acceptBtn = page.getByRole('button', { name: 'Accept' });
+    if (await acceptBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await acceptBtn.click();
+      await page.waitForTimeout(500);
+      console.log('  → Cookie consent accepted');
+    }
+    
+    // Check if "Proceed" button exists (means address form is present)
+    const proceedBtn = page.getByRole('button', { name: 'Proceed' });
+    const hasProceedBtn = await proceedBtn.isVisible({ timeout: 3000 }).catch(() => false);
+    
+    if (hasProceedBtn) {
+      console.log('  → Address form present (physical product or requires address)');
+      console.log('  → Filling shipping address...');
+      await store.fillShippingAddressMinimal(); // This clicks Proceed internally
+      console.log('  ✓ Address filled and Proceed clicked');
+    } else {
+      console.log('  ℹ No address form (likely e-book only - no shipping needed)');
+      console.log('  → Proceeding directly to payment...');
+    }
+    
+    console.log('Step 8 (B5): Waiting for payment methods to load...');
+    await page.waitForTimeout(2000);
+    
+    console.log('Step 9 (B5): Selecting shipping method (if physical product)...');
+    // Physical products need shipping method selection first
+    const freeShippingLabel = page.locator('label[for="free_free"]').last();
+    if (await freeShippingLabel.isVisible({ timeout: 3000 }).catch(() => false)) {
+      console.log('  → Selecting Free Shipping...');
+      await freeShippingLabel.click();
+      await page.waitForTimeout(1000);
+      console.log('  ✓ Free Shipping selected');
+    } else {
+      console.log('  ℹ No shipping selection (e-book product)');
+    }
+    
+    console.log('Step 10 (B5): Selecting payment method...');
+    // Try clicking payment label (works for both e-book and physical products)
+    const paymentLabels = [
+      page.locator('label[for="cashondelivery"]').last(),
+      page.locator('label[for="moneytransfer"]').last(),
+      page.locator('label:has-text("Cash On Delivery")').first(),
+      page.locator('label:has-text("Money Transfer")').first()
+    ];
+    
+    let paymentSelected = false;
+    for (const label of paymentLabels) {
+      if (await label.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await label.click({ force: true });
+        await page.waitForTimeout(2000);
+        console.log('  ✓ Payment method selected');
+        paymentSelected = true;
+        break;
       }
     }
-    console.log('');
     
-    if (actualNewOrders === 1) {
-      console.log('  ✓ PASS: Only 1 order created (no duplicate)');
-      console.log('    → First order was interrupted by F5, second order succeeded');
-    } else if (actualNewOrders === 2) {
-      console.log('  ⚠ POTENTIAL DUPLICATE: 2 orders created!');
-      console.log('    → Need to compare orders to confirm duplicate');
+    if (!paymentSelected) {
+      console.log('  ⚠ Could not select payment method');
+      return;
+    }
+    
+    console.log('Step 11 (B5): Placing new order...');
+    
+    // Scroll to bottom to ensure Place Order button is visible
+    await page.keyboard.press('End');
+    await page.waitForTimeout(1000);
+    
+    const placeOrderBtn = page.getByRole('button', { name: 'Place Order' });
+    
+    if (await placeOrderBtn.isVisible({ timeout: 10000 }).catch(() => false)) {
+      await placeOrderBtn.click();
+      console.log('  → Place Order clicked');
+      console.log('  → Waiting for order processing...');
     } else {
-      console.log(`  ℹ Created ${actualNewOrders} orders (check manually)`);
+      console.log('  ⚠ Place Order button not found after scrolling');
+      
+      // Debug: check what buttons are visible
+      const allButtons = page.locator('button');
+      const btnCount = await allButtons.count();
+      console.log(`  → Found ${btnCount} button(s) on page`);
+      
+      if (btnCount > 0) {
+        console.log('  → Trying alternative Place Order selector...');
+        const placeOrderAlt = page.locator('button:has-text("Place Order")').first();
+        if (await placeOrderAlt.isVisible({ timeout: 5000 }).catch(() => false)) {
+          await placeOrderAlt.click();
+          console.log('  ✓ Place Order clicked (alternative selector)');
+        } else {
+          console.log('  ⚠ Could not find Place Order button');
+          return;
+        }
+      } else {
+        return;
+      }
     }
     
-    console.log('');
-    console.log('Step 13: Verifying cart is empty...');
-    await store.openCart();
+    console.log('Step 11: Waiting for order success page...');
+    await page.waitForURL('**/checkout/onepage/success', {
+      timeout: 60000,
+      waitUntil: 'networkidle'
+    });
+    console.log('  ✓ Order placed successfully!');
+    await page.waitForTimeout(2000);
     
-    try {
-      await store.cartIsEmpty();
-      console.log('  ✓ Cart empty after order');
-    } catch {
-      const qtyInputsCheck = page.locator('input[type="hidden"][name="quantity"]');
-      const cartItems = await qtyInputsCheck.count();
-      console.log(`  ⚠ Cart not empty: ${cartItems} items`);
+    console.log('Step 12: Extracting new order ID...');
+    const orderLink = page.locator('p.text-xl a.text-blue-700[href*="/orders/view/"]').first();
+    
+    let newOrderId = '';
+    if (await orderLink.isVisible({ timeout: 5000 }).catch(() => false)) {
+      const orderIdText = await orderLink.textContent();
+      newOrderId = orderIdText?.trim() || '';
+      console.log(`  ✓ New order created: #${newOrderId}`);
+      
+      // Click order link to verify details
+      console.log('Step 13: Verifying new order details...');
+      await orderLink.click();
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(3000);
+      
+      // Extract Grand Total
+      const grandTotalText = await page.getByText('Grand Total $').first()
+        .textContent({ timeout: 3000 })
+        .catch(() => null);
+      
+      if (grandTotalText) {
+        const match = grandTotalText.match(/\$[\d,]+\.?\d*/);
+        const grandTotal = match ? match[0] : 'N/A';
+        console.log(`  ✓ Order Grand Total: ${grandTotal}`);
+      }
+      
+      console.log('');
+      console.log('S17: ✓ COMPLETED - Cancel & Reorder flow tested');
+      console.log(`  Cancelled order: #${initialFirstOrderId}`);
+      console.log(`  New order: #${newOrderId}`);
+      console.log('  Flow: Login → Cancel Order → Reorder → Checkout → Verify');
+    } else {
+      console.log('  ⚠ Could not extract new order ID');
+      console.log('S17: PARTIAL - Order placed but ID not found');
     }
-    
-    console.log('');
-    console.log('S9B: COMPLETED - Immediate F5 interrupt tested');
-    console.log('=== KEY FINDINGS ===');
-    console.log(`  Initial order: #${initialFirstOrderId || 'No orders'}`);
-    console.log(`  New orders created: ${actualNewOrders} ${secondOrderId ? `(Success page showed #${secondOrderId})` : ''}`);
-    console.log(`  Duplicate prevention: ${actualNewOrders === 1 ? '✓ PASS' : actualNewOrders === 2 ? '✗ FAIL (DUPLICATE!)' : '?'}`);
-    console.log('');
-    console.log('Test Scenario:');
-    console.log('  1. Place Order #1 → Click button');
-    console.log('  2. Wait < 100ms (VERY FAST interrupt)');
-    console.log('  3. Press F5 to reload page');
-    console.log('  4. Place Order #2 → Fill form and click button (WAIT for success page)');
-    console.log('  5. Check orders page - COUNT new orders until hitting initial order');
-    console.log('  6. If 2 orders: Compare price + product for duplicate detection');
   });
 });

@@ -414,32 +414,8 @@ class TestBagistoS5PriceChange:
         # Step 10: Place order
         print("\nStep 10 (User): Placing order...")
         
-        # CRITICAL: Select shipping method FIRST (Free Shipping)
-        print("  → Selecting shipping method...")
-        try:
-            freeShippingLabel = driver.find_element(By.CSS_SELECTOR, 'label[for="free_free"]')
-            driver.execute_script("arguments[0].click();", freeShippingLabel)
-            time.sleep(2)
-            print("  ✓ Free Shipping selected")
-        except NoSuchElementException:
-            print("  ℹ No shipping method needed (might be digital product)")
-        
-        # Select payment method (Cash On Delivery)
-        print("  → Selecting payment method...")
-        codLabel = driver.find_element(By.CSS_SELECTOR, 'label[for="cashondelivery"]')
-        driver.execute_script("arguments[0].click();", codLabel)
-        time.sleep(2)
-        
-        # Scroll to Place Order button
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(1)
-        
-        # Click Place Order
-        placeOrderBtn = driver.find_element(
-            By.XPATH,
-            "//button[contains(text(), 'Place Order')]"
-        )
-        driver.execute_script("arguments[0].click();", placeOrderBtn)
+        # Use StorePage method (handles both physical and digital products automatically)
+        store.choose_payment_and_place(expect_success_msg=False)
         
         try:
             WebDriverWait(driver, 50).until(

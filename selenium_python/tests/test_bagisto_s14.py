@@ -18,10 +18,10 @@ from selenium.webdriver.common.keys import Keys
 from pages.store_page import StorePage
 
 
-class TestBagistoS17CancelOrder:
+class TestBagistoS15CancelOrder:
     """S17 - Cancel Order After Payment Test Suite"""
     
-    def test_s17_cancel_order_then_reorder(self, driver, base_url, credentials):
+    def test_s15_cancel_order_then_reorder(self, driver, base_url, credentials):
         """
         S17 – Cancel order then reorder and complete checkout
         
